@@ -121,13 +121,13 @@ do j=0,dimsizes(levels)-1
 
    if j.eq.0 then ; 925 hPa  
      ResC@cnMinLevelValF = -10
-     ResC@cnMaxLevelValF = 20
+     ResC@cnMaxLevelValF = 30
    else if j.eq.1 then ; 850 hPa 
      ResC@cnMinLevelValF = -10
-     ResC@cnMaxLevelValF = 15
+     ResC@cnMaxLevelValF = 25
    else if j.eq.2 then ; 700 hPa 
      ResC@cnMinLevelValF = -20
-     ResC@cnMaxLevelValF = 5
+     ResC@cnMaxLevelValF = 20
    else if j.eq.3 then ; 500 hPa  
      ResC@cnMinLevelValF = -40
      ResC@cnMaxLevelValF = -5

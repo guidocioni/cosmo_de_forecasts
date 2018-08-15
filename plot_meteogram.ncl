@@ -80,33 +80,28 @@ do i=1,dimsizes(time)-1
   snow(i,:,:)=snow_acc(i,:,:)-snow_acc(i-1,:,:) 
 end do 
 
-;rain=mask(rain, rain.le.0.0001, 0)
-;snow=mask(snow, snow.le.0.0001, 0)
-
-ipoint=getind_latlon2d(f_in[:]->lat, f_in[:]->lon, lat_point, lon_point)
-
 ; Select the data at the point 
-temp_point_test=temp(:,:,ipoint(0,0),ipoint(0,1))
+temp_point_test=temp(:,:,{lat_point},{lon_point})
 temp_point=temp_point_test(plev|:,time|:)
 delete(temp_point_test)
-u_point_test=u(:,:,ipoint(0,0),ipoint(0,1))
+u_point_test=u(:,:,{lat_point},{lon_point})
 u_point=u_point_test(plev|:,time|:)
 delete(u_point_test)
-v_point_test=v(:,:,ipoint(0,0),ipoint(0,1))
+v_point_test=v(:,:,{lat_point},{lon_point})
 v_point=v_point_test(plev|:,time|:)
 delete(v_point_test)
-rh_point_test=rh(:,:,ipoint(0,0),ipoint(0,1))
+rh_point_test=rh(:,:,{lat_point},{lon_point})
 rh_point=rh_point_test(plev|:,time|:)
 delete(rh_point_test)
 
-mslp_point=mslp(:,ipoint(0,0),ipoint(0,1))
-gust_point=gust(:,0,ipoint(0,0),ipoint(0,1))
-t2m_point=t2m(:,0,ipoint(0,0),ipoint(0,1))
-dewp_point=dewp(:,0,ipoint(0,0),ipoint(0,1))
-snow_point=snow(:,ipoint(0,0),ipoint(0,1))
-rain_point=rain(:,ipoint(0,0),ipoint(0,1))
-snow_acc_point=snow_acc(:,ipoint(0,0),ipoint(0,1))
-rain_acc_point=rain_acc(:,ipoint(0,0),ipoint(0,1))
+mslp_point=mslp(:,{lat_point},{lon_point})
+gust_point=gust(:,0,{lat_point},{lon_point})
+t2m_point=t2m(:,0,{lat_point},{lon_point})
+dewp_point=dewp(:,0,{lat_point},{lon_point})
+snow_point=snow(:,{lat_point},{lon_point})
+rain_point=rain(:,{lat_point},{lon_point})
+snow_acc_point=snow_acc(:,{lat_point},{lon_point})
+rain_acc_point=rain_acc(:,{lat_point},{lon_point})
 
 ;-----------------------------------------------------------------------
 res2D = True                            ; Set basic resources 
@@ -132,7 +127,7 @@ tt_res@cnFillPalette ="NCV_jet"
 tt_res@cnFillOn                 = True             ; turns on color fill
 tt_res@cnLevelSelectionMode     = "ManualLevels"   ; set levels manually
 tt_res@cnMinLevelValF           = -50.
-tt_res@cnMaxLevelValF           = 10.
+tt_res@cnMaxLevelValF           = 25.
 tt_res@cnLevelSpacingF          = 2.5
 ; tt_res@cnLinesOn                = False
 tt_res@cnLineThicknessF = 0.005
@@ -206,7 +201,9 @@ res_xy@tiYAxisString   = "Rain/snow"        ; set y-axis string
 res_xy@tmXBLabelsOn = False
 res_xy@tmYLLabelsOn = True
 res_xy@tmYRLabelsOn = False
-res_xy@tmYLLabelDeltaF = 1.5
+res_xy@tmYLLabelDeltaF = .2
+res_xy@tmYMajorGrid = True 
+res_xy@tmYMajorGridThicknessF = 0.4
 
 res_xy2 =res_xy
 res_xy2@tmYLLabelsOn = False
@@ -214,6 +211,7 @@ res_xy2@tmYRLabelsOn = True
 res_xy2@tiYAxisString   = ""
 res_xy2@xyDashPattern = 1
 res_xy2@xyLineThicknessF = 3 
+res_xy2@tmYMajorGrid = False 
 
 res_xy@pmLegendDisplayMode    = "Always"
 res_xy@pmLegendSide           = "Bottom"               ; Change location of 
@@ -231,15 +229,16 @@ res_xy@xyExplicitLegendLabels = (/"Rain [mm]","Snow [mm eq]"/)
 t2_res = res1D
 t2_res@vpHeightF         = 0.13          ; The height of the plot box
 t2_res@xyLineColors      = (/"black","blue"/)        ; set line color
-t2_res@tiYAxisString   = "2m T/T~B~D~N~ [C]"        ; set y-axis string
+t2_res@tiYAxisString   = "2m Temp - T~B~D~N~ [C]"        ; set y-axis string
 t2_res@tiYAxisSide  = "Right"
 t2_res@tmXBLabelFontHeightF = 0.0005
 t2_res@tmXBLabelAngleF = 90
 t2_res@tmYMajorGrid = True 
 t2_res@tmYMajorGridThicknessF = 0.4
+t2_res@tmXBLabelDeltaF = 2.
 
 slp_res = res1D
-slp_res@tmYLLabelDeltaF = 2.5
+slp_res@tmYLLabelDeltaF = 3.0
 
 wind_res= res1D
 wind_res@xyLineColor = "red"
@@ -250,9 +249,10 @@ wind_res@tmYRMinorLineColor = "red"
 wind_res@tmYMajorGrid = True 
 wind_res@tmYMajorGridThicknessF = 0.4
 wind_res@tmYMajorGridLineColor = "red"
+wind_res@tmYRLabelDeltaF = 2.
 
 slp_res@xyLineColor      = "black"        ; set line color
-slp_res@tiYAxisString   = "MSLP/wind gust [km/h]"        ; set y-axis string
+slp_res@tiYAxisString   = "MSLP - winds [km/h]"        ; set y-axis string
 slp_res@tiYAxisSide  = "Right"
 slp_res@tiYAxisOffsetXF = 0.05
 

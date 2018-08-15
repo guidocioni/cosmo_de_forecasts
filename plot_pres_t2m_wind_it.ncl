@@ -110,7 +110,7 @@ ResC@pmTickMarkDisplayMode = True
 ResC2@cnLevelSelectionMode = "ManualLevels"
 ResC2@cnMinLevelValF = round(min(mslp), 0)
 ResC2@cnMaxLevelValF = round(max(mslp), 0) 
-ResC2@cnLevelSpacingF = 2
+ResC2@cnLevelSpacingF = 4
 ResC2@cnLineThicknessF = 4
 ResC2@cnLineColor = "white"
 ResC2@cnLineLabelFontHeightF = 0.004
@@ -122,7 +122,7 @@ ResC2@cnHighLabelFontHeightF = 0.005
 ResC@cnFillPalette = "BkBlAqGrYeOrReViWh200"
 ResC@cnLevelSelectionMode = "ManualLevels"
 ResC@cnMinLevelValF = -15
-ResC@cnMaxLevelValF = 35
+ResC@cnMaxLevelValF = 40
 ResC@cnLevelSpacingF = 1
 
 ResC@lbOrientation = "Vertical"

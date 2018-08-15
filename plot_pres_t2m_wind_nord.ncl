@@ -121,7 +121,7 @@ ResC2@cnLowLabelBackgroundColor = -1
 ResC@cnFillPalette = "BkBlAqGrYeOrReViWh200"
 ResC@cnLevelSelectionMode = "ManualLevels"
 ResC@cnMinLevelValF = -15
-ResC@cnMaxLevelValF = 35
+ResC@cnMaxLevelValF = 40
 ResC@cnLevelSpacingF = 1
 
 ResC@lbOrientation = "Vertical"

@@ -33,13 +33,16 @@ plot_description="~F33~Dq~B~~F21~e~E~ (500 hPa-850hPa), winds at 500 hPa (red ba
 lev1=850.*100.
 lev2=500.*100.
 
-temp=f_in[:]->t
-rh=f_in[:]->r
-p=rh&plev
-u=f_in[:]->u
-v=f_in[:]->v
+temp_lev1=f_in[:]->t(:,{lev1},:,:)
+temp_lev2=f_in[:]->t(:,{lev2},:,:)
+rh_lev1=f_in[:]->r(:,{lev1},:,:)
+rh_lev2=f_in[:]->r(:,{lev2},:,:)
 
-delete_VarAtts(u, (/"long_name","units"/))
+u_lev1=f_in[:]->u(:,{lev1},:,:)
+u_lev2=f_in[:]->u(:,{lev2},:,:)
+
+v_lev1=f_in[:]->v(:,{lev1},:,:)
+v_lev2=f_in[:]->v(:,{lev2},:,:)
 
 lon = f_in[:]->lon 
 lat = f_in[:]->lat
@@ -49,19 +52,11 @@ date_string=time
 run_time=str_sub_str(time@units,"hours since ","")
 run_string="Run: "+run_time
 
-delete([/fils, f_in, f_in, f_in, f_in/])
+delete([/fils, f_in/])
 ; conversion 
 
-theta_e=pot_temp_equiv(p, temp, rh, 1, "rh")
-
-theta_e_850=theta_e(:,{lev2},:,:)-theta_e(:,{lev1},:,:)
-
-theta_e_850@lat2d = lat 
-theta_e_850@lon2d = lon 
-u@lat2d = lat 
-u@lon2d = lon 
-v@lat2d = lat 
-v@lon2d = lon 
+theta_e_850=pot_temp_equiv(lev2, temp_lev2, rh_lev2, 1, "rh")-pot_temp_equiv(lev1, temp_lev1, rh_lev1, 1, "rh")
+copy_VarCoords(temp_lev1, theta_e_850)
 
 ; create plot
 
@@ -77,7 +72,7 @@ ResC@tiYAxisString =""
 ResV=ResC 
 
 ResC@cnFillOn = True ; do color fill
-; ResC@cnFillMode = "rasterfill"
+ResC@cnFillMode = "rasterfill"
 ResC@cnLinesOn=False
 
 ResC@mpFillOn     = False
@@ -110,7 +105,7 @@ ResV@gsnLeftString = ""
 ResV@gsnRightString = ""
 ResV@vcRefMagnitudeF           = 5             ; define vector ref mag
 ResV@vcRefLengthF              = 0.015           ; define length of vec ref
-ResV@vcMinDistanceF            = 0.02
+ResV@vcMinDistanceF            = 0.025
 ResV@vcRefAnnoOn               = False 
 ResV@vcGlyphStyle              = "WindBarb"     
 ResV@vcWindBarbLineThicknessF = 2.0               ; change vector thickness
@@ -118,7 +113,7 @@ ResV@vcWindBarbLineThicknessF = 2.0               ; change vector thickness
 txres                       = True
 txres@txPerimOn             = True
 txres@txBackgroundFillColor = "White"
-txres@txFontHeightF         = 0.015
+txres@txFontHeightF         = 0.013
 
 amres=True 
 amres@amParallelPosF   = -0.5    ; This is the right edge of the plot.
@@ -136,9 +131,9 @@ do time_i=0,dimsizes(time)-1
 
    plot = gsn_csm_contour_map(wks,theta_e_850(time_i,:,:),ResC)
    ResV@vcWindBarbColor          = "red"           ; change vector color
-   over_vector=gsn_csm_vector(wks, u(time_i,{lev2},:,:), v(time_i,{lev2},:,:), ResV)
+   over_vector=gsn_csm_vector(wks, u_lev2(time_i,:,:), v_lev2(time_i,:,:), ResV)
    ResV@vcWindBarbColor          = "black"           ; change vector color
-   over_vector_2=gsn_csm_vector(wks, u(time_i,{lev1},:,:), v(time_i,{lev1},:,:), ResV)
+   over_vector_2=gsn_csm_vector(wks, u_lev1(time_i,:,:), v_lev1(time_i,:,:), ResV)
 
    text=gsn_create_text(wks, plot_description, txres)
    description=gsn_add_annotation(plot, text, amres)
