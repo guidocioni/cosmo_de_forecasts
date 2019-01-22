@@ -55,11 +55,6 @@ mslp = mslp/100.
 temp=temp-273.15
 temp_850=temp(:,{lev},:,:)
 
-mslp@lat2d=lat 
-mslp@lon2d=lon
-temp_850@lat2d=lat 
-temp_850@lon2d=lon
-
 ; create plot
 
 ResC = True

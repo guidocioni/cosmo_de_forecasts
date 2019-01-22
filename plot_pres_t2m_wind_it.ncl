@@ -61,15 +61,6 @@ delete([/fils, f_pres, f_t2m, f_u10m, f_v10m/])
 mslp = mslp/100.
 t_2m=t_2m-273.15
 
-mslp@lat2d=lat 
-mslp@lon2d=lon
-t_2m@lat2d=lat 
-t_2m@lon2d=lon
-u_10m@lat2d=lat 
-u_10m@lon2d=lon
-v_10m@lat2d=lat 
-v_10m@lon2d=lon
-
 ; create plot
 
 ResC = True

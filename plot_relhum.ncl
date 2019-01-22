@@ -41,13 +41,6 @@ run_string="Run: "+run_time
 
 levels=(/925, 850, 700, 500/)*100.
 
-rh@lat2d=lat 
-rh@lon2d=lon
-u@lat2d=lat 
-u@lon2d=lon
-v@lat2d=lat 
-v@lon2d=lon
- 
 ; create plot
 
 ResC = True

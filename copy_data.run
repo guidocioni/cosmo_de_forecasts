@@ -3,9 +3,12 @@
 
 export NCARG_ROOT=/sw/jessie-x64/ncl-6.4.0-nodap-precompiled 
 export PATH=$NCARG_ROOT/bin:$PATH 
-
 export cdo=/sw/jessie-x64/cdo-1.8.0-gccsys/bin/cdo
-export python=/sw/jessie-x64/python/python-2.7-ve6-gccsys/bin/python
+
+source /sw/jessie-x64/anaconda2-4.1.1/bin/activate my_base
+export QT_QPA_PLATFORM=offscreen
+export DISPLAY=localhost:0
+export python=/home/mpim/m300382/.conda/envs/my_base/bin/python
 
 export year=`date +"%Y"`
 export month=`date +"%m"`
@@ -57,12 +60,14 @@ rm cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc
 export TASK_PYTHON_COSMO_D2="download_merge_2d_variable_cosmo_d2"
 ${python} task_parallelism_general.py T_2M TD_2M U_10M V_10M VMAX_10M PMSL CAPE_ML DBZ_CMAX CIN_ML RELHUM_2M H_SNOW HZEROCL SNOWLMT TMAX_2M TMIN_2M CLCL CLCH TOT_PREC SNOW_GSP RAIN_GSP WW
 
-# Convert 15-minutes precipitation to hourly accumulated values
-for variable in "TOT_PREC" "RAIN_GSP" "SNOW_GSP"; do 
-	${cdo} hoursum cosmo-d2_single-level_${variable}_${year}${month}${day}${run}.nc cosmo-d2_single-level_${variable}_${year}${month}${day}${run}_hourly.nc 
+# Convert 15-minutes precipitation to hourly values. Note that, since it is already accumulated
+# we just need to select the hourly output from the file using the select operator, not
+# to sum as previously done!!!
+
+for variable in "RAIN_GSP" "SNOW_GSP" "TOT_PREC"; do 
+	${cdo} select,minute=0 cosmo-d2_single-level_${variable}_${year}${month}${day}${run}.nc cosmo-d2_single-level_${variable}_${year}${month}${day}${run}_hourly.nc 
 done
 
-#plot with NCL
 ncl lat_point=53.550556 lon_point=9.993333 'city="Hamburg"' plot_meteogram.ncl
 ncl lat_point=43.715 lon_point=10.40 'city="Pisa"' plot_meteogram.ncl
 ncl lat_point=45.475 lon_point=9.2 'city="Milano"' plot_meteogram.ncl
@@ -72,7 +77,9 @@ ncftpput -R -v altervista cosmo_de_forecasts/meteograms meteogram_*
 
 ${python} task_parallelism.py plot_cape.ncl plot_pres_t2m_wind.ncl plot_reflectivity.ncl plot_t850_pres.ncl plot_winds10m.ncl plot_rain_clouds.ncl plot_thetae_winds.ncl plot_hsnow.ncl plot_relhum.ncl plot_t.ncl
 
-${python} task_parallelism.py plot_cape_it.ncl plot_cape_nord.ncl plot_hsnow_it.ncl plot_pres_t2m_wind_it.ncl plot_pres_t2m_wind_nord.ncl plot_rain_clouds_it.ncl plot_rain_clouds_nord.ncl plot_reflectivity_it.ncl plot_reflectivity_nord.ncl plot_winds10m_it.ncl plot_winds10m_nord.ncl
+${python} task_parallelism.py plot_cape_it.ncl plot_cape_nord.ncl plot_hsnow_it.ncl plot_hsnow_nord.ncl plot_pres_t2m_wind_it.ncl plot_pres_t2m_wind_nord.ncl plot_rain_clouds_it.ncl plot_rain_clouds_nord.ncl plot_reflectivity_it.ncl plot_reflectivity_nord.ncl plot_winds10m_it.ncl plot_winds10m_nord.ncl
+
+${python} plot_winter.py
 
 for f in *.png; do convert -trim +repage ${f} ${f}; done
 for f in it/*.png; do convert -trim +repage ${f} ${f}; done
@@ -111,6 +118,7 @@ ncftpput -R -v altervista cosmo_de_forecasts/t_500 t_500_*
 ncftpput -R -v altervista cosmo_de_forecasts/t_700 t_700_*
 ncftpput -R -v altervista cosmo_de_forecasts/t_850 t_850_*
 ncftpput -R -v altervista cosmo_de_forecasts/t_925 t_925_*
+ncftpput -R -v altervista cosmo_de_forecasts/winter winter_*
 
 ncftpput -R -v altervista cosmo_de_forecasts/it/cape_cin it/cape_cin_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/radar it/radar_*
@@ -118,12 +126,14 @@ ncftpput -R -v altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/winds10m it/winds10m_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/hsnow it/hsnow_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/winter it/winter_*
 
 ncftpput -R -v altervista cosmo_de_forecasts/nord/cape_cin nord/cape_cin_*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/radar nord/radar_*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres_*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/winds10m nord/winds10m_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/hsnow nord/hsnow_*
 
 # remove from local directory
 rm *.png

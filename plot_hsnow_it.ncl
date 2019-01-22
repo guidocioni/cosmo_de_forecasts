@@ -53,11 +53,6 @@ do i=1,dimsizes(time)-1
     change_snow(i,:,:)=depth_snow(i,:,:)-depth_snow(0,:,:)
 end do 
 
-change_snow@lat2d=lat 
-change_snow@lon2d=lon
-height_snow@lat2d=lat 
-height_snow@lon2d=lon
-
 delete([/fils, f_hsnow, f_depthsnow/])
 
 ; create plot

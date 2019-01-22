@@ -6,7 +6,7 @@ begin
  
 folder="/scratch/local1/m300382/temp/cosmo/"
 
-fils = systemfunc ("ls "+folder+"COSMODE_model_level_elements_T_*") ; file paths
+fils = systemfunc ("ls "+folder+"_T_*") ; file paths
 f_t    = addfiles (fils, "r")  
 ListSetType (f_t, "cat")
 
@@ -196,7 +196,7 @@ ind_levmax = 26
 
 ; do time_i=0,dimsizes(time)-1
 do time_i=3,3
-    wks = gsn_open_wks("png","cross_section_21_"+time_i)    ; open a workstation
+    wks = gsn_open_wks("x11§","cross_section_21_"+time_i)    ; open a workstation
 
   tt_res@tiMainString= "Forecast for "+cd_string(time(time_i), "%d %c. %Y")+" at "+cd_string(time(time_i), "%H:%M")+" UTC"
   ttfill    = gsn_csm_contour(wks,trans_t(time_i,0:ind_levmax,:),tt_res)

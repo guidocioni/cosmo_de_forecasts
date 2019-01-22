@@ -49,8 +49,6 @@ u_10m=f_u10m[:]->10u
 v_10m=f_v10m[:]->10v
 mslp=f_pres[:]->prmsl
 
-lon = f_pres[:]->lon 
-lat = f_pres[:]->lat
 time= f_pres[:]->time
 
 date_string=time
@@ -62,15 +60,6 @@ delete([/fils, f_pres/])
 ; conversion 
 mslp = mslp/100.
 vmax_10m=vmax_10m*3.6
-
-mslp@lat2d=lat 
-mslp@lon2d=lon
-vmax_10m@lat2d=lat 
-vmax_10m@lon2d=lon
-u_10m@lat2d=lat 
-u_10m@lon2d=lon
-v_10m@lat2d=lat 
-v_10m@lon2d=lon
 
 ; create plot
 

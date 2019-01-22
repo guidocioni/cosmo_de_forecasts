@@ -75,15 +75,6 @@ end do
 
 ; change_snow=mask(change_snow, change_snow .le. 0.5, False)
 
-rain@lat2d=lat 
-rain@lon2d=lon
-change_snow@lat2d=lat 
-change_snow@lon2d=lon
-clcl@lat2d=lat 
-clcl@lon2d=lon
-clch@lat2d=lat 
-clch@lon2d=lon
-
 ; create plot
 
 ResC = True
@@ -177,7 +168,7 @@ ResC5@pmLabelBarHeightF = 0.04
 ResC5@lbLabelFontHeightF = 0.005
 ResC5@pmLabelBarOrthogonalPosF = 0.05
 ResC5@cnLevelSelectionMode = "ExplicitLevels"
-ResC5@cnLevels = (/1, 1.5, 2, 2.5, 3, 4, 5, 10, 20/)
+ResC5@cnLevels = (/0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 10, 20/)
 ResC5@lbTitleOn = True 
 ResC5@lbTitleString = "Snow [cm]"
 ResC5@lbTitlePosition = "Right"

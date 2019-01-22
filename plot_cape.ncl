@@ -50,15 +50,6 @@ lon = f_cape[:]->lon
 lat = f_cape[:]->lat
 time= f_cape[:]->time 
 
-cape@lat2d=lat 
-cape@lon2d=lon
-cin@lat2d=lat 
-cin@lon2d=lon
-u@lat2d=lat 
-u@lon2d=lon
-v@lat2d=lat 
-v@lon2d=lon
-
 date_string=time
 run_time=str_sub_str(time@units,"hours since ","")
 run_string="Run: "+run_time

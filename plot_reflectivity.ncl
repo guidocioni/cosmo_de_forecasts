@@ -36,9 +36,6 @@ lon = f[:]->lon
 lat = f[:]->lat
 time= f[:]->time 
 
-dbz@lat2d=lat 
-dbz@lon2d=lon
-
 date=cd_calendar(time,-5)
 date_string=sprinti("%0.2i",toint(time))+sprinti("%0.2i", date(:,4))
 
