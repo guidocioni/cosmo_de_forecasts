@@ -143,7 +143,10 @@ def get_colormap_norm(cmap_type, levels):
         colors = ["#DBF069","#5AE463","#E3BE45","#65F8CA","#32B8EB",
                     "#1D64DE","#E97BE4","#F4F476","#E78340","#D73782","#702072"]
         cmap, norm = from_levels_and_colors(levels, colors, extend='max')
-    
+    elif cmap_type == "rain_acc":    
+        cmap, norm = from_levels_and_colors(levels, sns.color_palette('gist_stern_r', n_colors=len(levels)),
+                         extend='max')    
+
     return(cmap, norm)
 
 def remove_collections(elements):
