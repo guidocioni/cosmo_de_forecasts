@@ -1,14 +1,20 @@
 #!/bin/bash
-. ~/functions_download_dwd.sh
 
+##### LOAD functions to download model data
+. ~/functions_download_dwd.sh
+export SHELL=$(type -p bash)
+########################################### 
+
+##### LOAD environmental variables ########
 export NCARG_ROOT=/sw/jessie-x64/ncl-6.4.0-nodap-precompiled 
 export PATH=$NCARG_ROOT/bin:$PATH 
 export cdo=/sw/jessie-x64/cdo-1.8.0-gccsys/bin/cdo
-
-source /sw/jessie-x64/anaconda2-4.1.1/bin/activate my_base
-export QT_QPA_PLATFORM=offscreen
-export DISPLAY=localhost:0
 export python=/home/mpim/m300382/.conda/envs/my_base/bin/python
+export parallel=/client/bin/parallel
+########################################### 
+
+export QT_QPA_PLATFORM=offscreen # Needed to avoid errors when using Python without display
+source /sw/jessie-x64/anaconda2-4.1.1/bin/activate my_base
 
 export year=`date +"%Y"`
 export month=`date +"%m"`
@@ -50,20 +56,20 @@ cp /home/mpim/m300382/cosmo_de_forecasts/*.ncl ./
 cp /home/mpim/m300382/cosmo_de_forecasts/*.py ./
 
 #3-D variables
-export TASK_PYTHON_COSMO_D2="download_merge_3d_variable_cosmo_d2"
-${python} task_parallelism_general.py T U V RELHUM
+variables=("T" "FI" "RELHUM" "U" "V")
+${parallel} -j 8 download_merge_3d_variable_cosmo_d2 ::: "${variables[@]}"
 
 ${cdo} merge cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc cosmo-d2_germany_pressure-level_${year}${month}${day}${run}.nc
 rm cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc
 
 #2-D variables
-export TASK_PYTHON_COSMO_D2="download_merge_2d_variable_cosmo_d2"
-${python} task_parallelism_general.py T_2M TD_2M U_10M V_10M VMAX_10M PMSL CAPE_ML DBZ_CMAX CIN_ML RELHUM_2M H_SNOW HZEROCL SNOWLMT TMAX_2M TMIN_2M CLCL CLCH TOT_PREC SNOW_GSP RAIN_GSP WW
+variables=("T_2M" "TD_2M" "U_10M" "V_10M" "VMAX_10M" "PMSL" "CAPE_ML" "DBZ_CMAX" "CIN_ML" "RELHUM_2M" "H_SNOW" "HZEROCL" "SNOWLMT" "TMAX_2M" "TMIN_2M" "CLCL" "CLCH" "TOT_PREC" "SNOW_GSP" "RAIN_GSP" "WW")
+${parallel} -j 8 download_merge_2d_variable_cosmo_d2 ::: "${variables[@]}"
 
 # Convert 15-minutes precipitation to hourly values. Note that, since it is already accumulated
 # we just need to select the hourly output from the file using the select operator, not
 # to sum as previously done!!!
-
+# Given xarray this will not be needed in the future, but we still use NCL for the meteorgrams
 for variable in "RAIN_GSP" "SNOW_GSP" "TOT_PREC"; do 
 	${cdo} select,minute=0 cosmo-d2_single-level_${variable}_${year}${month}${day}${run}.nc cosmo-d2_single-level_${variable}_${year}${month}${day}${run}_hourly.nc 
 done
@@ -73,27 +79,16 @@ ncl lat_point=43.715 lon_point=10.40 'city="Pisa"' plot_meteogram.ncl
 ncl lat_point=45.475 lon_point=9.2 'city="Milano"' plot_meteogram.ncl
 ncl lat_point=51.800556 lon_point=10.6172222 'city="Brocken"' plot_meteogram.ncl
 
+for variable in "RAIN_GSP" "SNOW_GSP" "TOT_PREC"; do 
+	rm cosmo-d2_single-level_${variable}_${year}${month}${day}${run}_hourly.nc 
+done
+
 ncftpput -R -v altervista cosmo_de_forecasts/meteograms meteogram_*
 
-${python} task_parallelism.py plot_cape.ncl plot_pres_t2m_wind.ncl plot_reflectivity.ncl plot_t850_pres.ncl plot_winds10m.ncl plot_rain_clouds.ncl plot_thetae_winds.ncl plot_hsnow.ncl plot_relhum.ncl plot_t.ncl
+scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py" "plot_winter.py")
+projections=("de" "it" "nord")
 
-${python} task_parallelism.py plot_cape_it.ncl plot_cape_nord.ncl plot_hsnow_it.ncl plot_hsnow_nord.ncl plot_pres_t2m_wind_it.ncl plot_pres_t2m_wind_nord.ncl plot_rain_clouds_it.ncl plot_rain_clouds_nord.ncl plot_reflectivity_it.ncl plot_reflectivity_nord.ncl plot_winds10m_it.ncl plot_winds10m_nord.ncl
-
-${python} plot_winter.py
-
-for f in *.png; do convert -trim +repage ${f} ${f}; done
-for f in it/*.png; do convert -trim +repage ${f} ${f}; done
-for f in nord/*.png; do convert -trim +repage ${f} ${f}; done
-
-# Optional
-# Create animations
-# convert -delay 15 t_v_pres* animation_t_v_pres.gif
-# convert -delay 15 gph_t_* animation_gph_t.gif
-
-# Rename all the local images so that they contain the run 
-# this is useful to distinguish the images on the remote server
-# so that HTTP has to load new content every time 
-# for f in *.png; do NEW=${f%.png}_${year}${month}${day}${run}.png; mv ${f} "${NEW}"; done
+${parallel} -j 8 ${python} ::: "${scripts[@]}" ::: "${projections[@]}"
 
 # Upload files to the server
 #Note that for this to work a new bookmark needs to be created beforehand in ncftp
@@ -113,27 +108,49 @@ ncftpput -R -v altervista cosmo_de_forecasts/hsnow hsnow_*
 ncftpput -R -v altervista cosmo_de_forecasts/rh_500 rh_500_*
 ncftpput -R -v altervista cosmo_de_forecasts/rh_700 rh_700_*
 ncftpput -R -v altervista cosmo_de_forecasts/rh_850 rh_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/rh_925 rh_925_*
+ncftpput -R -v altervista cosmo_de_forecasts/rh_950 rh_950_*
 ncftpput -R -v altervista cosmo_de_forecasts/t_500 t_500_*
 ncftpput -R -v altervista cosmo_de_forecasts/t_700 t_700_*
 ncftpput -R -v altervista cosmo_de_forecasts/t_850 t_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/t_925 t_925_*
+ncftpput -R -v altervista cosmo_de_forecasts/t_950 t_950_*
 ncftpput -R -v altervista cosmo_de_forecasts/winter winter_*
 
 ncftpput -R -v altervista cosmo_de_forecasts/it/cape_cin it/cape_cin_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/radar it/radar_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/t850_pres it/t850_pres_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres*
 ncftpput -R -v altervista cosmo_de_forecasts/it/winds10m it/winds10m_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/thetae_winds it/thetae_winds_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/hsnow it/hsnow_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/rh_500 it/rh_500_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/rh_700 it/rh_700_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/rh_850 it/rh_850_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/rh_950 it/rh_950_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/t_500 it/t_500_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/t_700 it/t_700_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/t_850 it/t_850_*
+ncftpput -R -v altervista cosmo_de_forecasts/it/t_950 it/t_950_*
 ncftpput -R -v altervista cosmo_de_forecasts/it/winter it/winter_*
 
 ncftpput -R -v altervista cosmo_de_forecasts/nord/cape_cin nord/cape_cin_*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/radar nord/radar_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/t850_pres nord/t850_pres_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/winds10m nord/winds10m_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/thetae_winds nord/thetae_winds_*
 ncftpput -R -v altervista cosmo_de_forecasts/nord/hsnow nord/hsnow_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_500 nord/rh_500_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_700 nord/rh_700_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_850 nord/rh_850_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_950 nord/rh_950_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/t_500 nord/t_500_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/t_700 nord/t_700_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/t_850 nord/t_850_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/t_950 nord/t_950_*
+ncftpput -R -v altervista cosmo_de_forecasts/nord/winter nord/winter_*
+
 
 # remove from local directory
 rm *.png
