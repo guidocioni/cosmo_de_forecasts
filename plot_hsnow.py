@@ -64,6 +64,8 @@ def main():
         fig = plt.figure(figsize=(figsize_x, figsize_y))
         ax  = plt.gca()        
         m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
+        img=m.arcgisimage(service='World_Shaded_Relief', xpixels = 1000, verbose=False)
+        img.set_alpha(0.8)
 
         # All the arguments that need to be passed to the plotting function
         args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap, norm=norm,

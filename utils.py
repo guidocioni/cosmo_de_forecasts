@@ -40,10 +40,17 @@ def get_coordinates(dataset):
     # will complain
     return(dataset['lon'].values, dataset['lat'].values)
 
+def get_city_coordinates(city):
+    """Get the lat/lon coordinates of a city given its name using geopy."""
+    from geopy.geocoders import Nominatim
+    geolocator =Nominatim(user_agent='meteogram')
+    loc = geolocator.geocode(city)
+    return(loc.longitude, loc.latitude)
+
 def get_projection(lon, lat, projection="de", countries=True, regions=True, labels=False):
     if projection=="de":
         m = Basemap(projection='cyl', llcrnrlon=5, llcrnrlat=46.5,\
-               urcrnrlon=16, urcrnrlat=56,  resolution='i')
+               urcrnrlon=16, urcrnrlat=56,  resolution='i',epsg=4269)
         if regions:
             m.readshapefile('/home/mpim/m300382/shapefiles/DEU_adm_shp/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
@@ -104,6 +111,14 @@ def annotation_forecast(ax, time, loc='upper left',fontsize=8):
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     ax.add_artist(at)
     return(at)    
+
+def annotation_forecast_radar(ax, time, loc='upper left',fontsize=8):
+    """Put annotation of the forecast time."""
+    at = AnchoredText('Forecast for %s' % time.strftime('%A %d %b %Y at %H:%M UTC'), 
+                       prop=dict(size=fontsize), frameon=True, loc=loc)
+    at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
+    ax.add_artist(at)
+    return(at)
 
 def annotation(ax, text, loc='upper right',fontsize=8):
     """Put a general annotation in the plot."""

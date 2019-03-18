@@ -28,3 +28,4 @@ plot_winds10m_nord.ncl
 plot_winter_old.py
 test.run
 utils.pyc
+plot_meteogram.ncl

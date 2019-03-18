@@ -47,7 +47,7 @@ def main():
 
     cum_hour=np.array((time-time[0]) / pd.Timedelta('15 minute')).astype("int")
 
-    levels_dbz = np.arange(10, 70, 2.5)
+    levels_dbz = np.arange(20, 70, 2.5)
 
     cmap = truncate_colormap(plt.get_cmap('nipy_spectral'), 0.1, 1.0)
     
@@ -86,7 +86,7 @@ def plot_files(dates, **args):
                                     levels=args['levels_dbz'])
 
         
-        an_fc = annotation_forecast(args['ax'],args['time'][i])
+        an_fc = annotation_forecast_radar(args['ax'],args['time'][i])
         an_var = annotation(args['ax'], 'Radar reflectivity [dBz]' ,loc='lower left', fontsize=6)
         an_run = annotation_run(args['ax'], args['time'])
 

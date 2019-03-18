@@ -66,26 +66,11 @@ rm cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc
 variables=("T_2M" "TD_2M" "U_10M" "V_10M" "VMAX_10M" "PMSL" "CAPE_ML" "DBZ_CMAX" "CIN_ML" "RELHUM_2M" "H_SNOW" "HZEROCL" "SNOWLMT" "TMAX_2M" "TMIN_2M" "CLCL" "CLCH" "TOT_PREC" "SNOW_GSP" "RAIN_GSP" "WW")
 ${parallel} -j 8 download_merge_2d_variable_cosmo_d2 ::: "${variables[@]}"
 
-# Convert 15-minutes precipitation to hourly values. Note that, since it is already accumulated
-# we just need to select the hourly output from the file using the select operator, not
-# to sum as previously done!!!
-# Given xarray this will not be needed in the future, but we still use NCL for the meteorgrams
-for variable in "RAIN_GSP" "SNOW_GSP" "TOT_PREC"; do 
-	${cdo} select,minute=0 cosmo-d2_single-level_${variable}_${year}${month}${day}${run}.nc cosmo-d2_single-level_${variable}_${year}${month}${day}${run}_hourly.nc 
-done
+${python} plot_meteogram.py Hamburg Pisa Milano Brocken
 
-ncl lat_point=53.550556 lon_point=9.993333 'city="Hamburg"' plot_meteogram.ncl
-ncl lat_point=43.715 lon_point=10.40 'city="Pisa"' plot_meteogram.ncl
-ncl lat_point=45.475 lon_point=9.2 'city="Milano"' plot_meteogram.ncl
-ncl lat_point=51.800556 lon_point=10.6172222 'city="Brocken"' plot_meteogram.ncl
+ncftpput -R -v -DD altervista cosmo_de_forecasts/meteograms meteogram_*
 
-for variable in "RAIN_GSP" "SNOW_GSP" "TOT_PREC"; do 
-	rm cosmo-d2_single-level_${variable}_${year}${month}${day}${run}_hourly.nc 
-done
-
-ncftpput -R -v altervista cosmo_de_forecasts/meteograms meteogram_*
-
-scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py" "plot_winter.py")
+scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_rain_acc.py" "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py" "plot_winter.py")
 projections=("de" "it" "nord")
 
 ${parallel} -j 8 ${python} ::: "${scripts[@]}" ::: "${projections[@]}"
@@ -97,59 +82,62 @@ ${parallel} -j 8 ${python} ::: "${scripts[@]}" ::: "${projections[@]}"
 # > bookmark name_of_the_bookmark
 # password is encoded using base64
 
-ncftpput -R -v altervista cosmo_de_forecasts/cape_cin cape_cin_*
-ncftpput -R -v altervista cosmo_de_forecasts/radar radar_*
-ncftpput -R -v altervista cosmo_de_forecasts/t850_pres t850_pres_*
-ncftpput -R -v altervista cosmo_de_forecasts/t_v_pres t_v_pres*
-ncftpput -R -v altervista cosmo_de_forecasts/winds10m winds10m_*
-ncftpput -R -v altervista cosmo_de_forecasts/precip_clouds precip_clouds_*
-ncftpput -R -v altervista cosmo_de_forecasts/thetae_winds thetae_winds_*
-ncftpput -R -v altervista cosmo_de_forecasts/hsnow hsnow_*
-ncftpput -R -v altervista cosmo_de_forecasts/rh_500 rh_500_*
-ncftpput -R -v altervista cosmo_de_forecasts/rh_700 rh_700_*
-ncftpput -R -v altervista cosmo_de_forecasts/rh_850 rh_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/rh_950 rh_950_*
-ncftpput -R -v altervista cosmo_de_forecasts/t_500 t_500_*
-ncftpput -R -v altervista cosmo_de_forecasts/t_700 t_700_*
-ncftpput -R -v altervista cosmo_de_forecasts/t_850 t_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/t_950 t_950_*
-ncftpput -R -v altervista cosmo_de_forecasts/winter winter_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/cape_cin cape_cin_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/radar radar_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/t850_pres t850_pres_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/t_v_pres t_v_pres*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/winds10m winds10m_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/precip_clouds precip_clouds_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/thetae_winds thetae_winds_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/hsnow hsnow_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_500 rh_500_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_700 rh_700_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_850 rh_850_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_950 rh_950_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/t_500 t_500_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/t_700 t_700_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/t_850 t_850_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/t_950 t_950_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/winter winter_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/precip_acc precip_acc_*
 
-ncftpput -R -v altervista cosmo_de_forecasts/it/cape_cin it/cape_cin_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/radar it/radar_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t850_pres it/t850_pres_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres*
-ncftpput -R -v altervista cosmo_de_forecasts/it/winds10m it/winds10m_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/thetae_winds it/thetae_winds_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/hsnow it/hsnow_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/rh_500 it/rh_500_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/rh_700 it/rh_700_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/rh_850 it/rh_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/rh_950 it/rh_950_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t_500 it/t_500_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t_700 it/t_700_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t_850 it/t_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/t_950 it/t_950_*
-ncftpput -R -v altervista cosmo_de_forecasts/it/winter it/winter_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/cape_cin it/cape_cin_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/radar it/radar_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t850_pres it/t850_pres_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/winds10m it/winds10m_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/thetae_winds it/thetae_winds_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/hsnow it/hsnow_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_500 it/rh_500_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_700 it/rh_700_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_850 it/rh_850_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_950 it/rh_950_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_500 it/t_500_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_700 it/t_700_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_850 it/t_850_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_950 it/t_950_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/winter it/winter_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/precip_acc it/precip_acc_*
 
-ncftpput -R -v altervista cosmo_de_forecasts/nord/cape_cin nord/cape_cin_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/radar nord/radar_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t850_pres nord/t850_pres_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/winds10m nord/winds10m_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/thetae_winds nord/thetae_winds_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/hsnow nord/hsnow_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_500 nord/rh_500_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_700 nord/rh_700_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_850 nord/rh_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/rh_950 nord/rh_950_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t_500 nord/t_500_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t_700 nord/t_700_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t_850 nord/t_850_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/t_950 nord/t_950_*
-ncftpput -R -v altervista cosmo_de_forecasts/nord/winter nord/winter_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/cape_cin nord/cape_cin_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/radar nord/radar_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t850_pres nord/t850_pres_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/winds10m nord/winds10m_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/thetae_winds nord/thetae_winds_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/hsnow nord/hsnow_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_500 nord/rh_500_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_700 nord/rh_700_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_850 nord/rh_850_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_950 nord/rh_950_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_500 nord/t_500_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_700 nord/t_700_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_850 nord/t_850_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_950 nord/t_950_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/winter nord/winter_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/precip_acc nord/precip_acc_*
 
 
 # remove from local directory
