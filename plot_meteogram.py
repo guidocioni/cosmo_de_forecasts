@@ -30,16 +30,19 @@ else:
 files = glob(input_file)
 dset = xr.open_mfdataset(files)
 # Only take hourly data 
-dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
-dset = dset.metpy.parse_cf()
+dset_time = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
+dset_time = dset_time.metpy.parse_cf()
 
-time = pd.to_datetime(dset.time.values)
+time = pd.to_datetime(dset_time.time.values)
+time_prec = pd.to_datetime(dset.time.values)
+
 cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
 
 for city in cities:# This works regardless if cities is either single value or array
 	print('Producing meteogram for %s' % city)
 	lon, lat = get_city_coordinates(city)
-	dset_city =  dset.sel(lon=lon, lat=lat, method='nearest').load()
+	dset_city =  dset_time.sel(lon=lon, lat=lat, method='nearest').load()
+	dset_city_prec = dset.sel(lon=lon, lat=lat, method='nearest').load()
 	dset_city['t'].metpy.convert_units('degC')
 	dset_city['t'].metpy.vertical.metpy.convert_units('hPa')
 	dset_city['2t'] = dset_city['2t'].metpy.sel(height=2 * units.m)
@@ -50,11 +53,11 @@ for city in cities:# This works regardless if cities is either single value or a
 	dset_city['10fg3'].metpy.convert_units('kph')
 	dset_city['prmsl'].metpy.convert_units('hPa')
 
-	rain_acc = dset_city['RAIN_GSP']
-	snow_acc = dset_city['SNOW_GSP']
+	rain_acc = dset_city_prec['RAIN_GSP']
+	snow_acc = dset_city_prec['SNOW_GSP']
 	rain = rain_acc*0.
 	snow = snow_acc*0.
-	for i in range(1, len(dset.time)):
+	for i in range(1, len(dset_city_prec.time)):
 	    rain[i]=rain_acc[i]-rain_acc[i-1]
 	    snow[i]=snow_acc[i]-snow_acc[i-1]
 
@@ -78,7 +81,7 @@ for city in cities:# This works regardless if cities is either single value or a
 	ax0.xaxis.set_major_locator(mdates.HourLocator(interval=2))
 	ax0.grid(True, alpha=0.5)
 	an_fc = annotation_run(ax0, time)
-	an_var = annotation(ax0, 'RH, Temp. and Winds @(%3.1fN,%3.1fE)' % (dset_city.lat,dset_city.lon) ,
+	an_var = annotation(ax0, 'RH, Temp. and Winds @(%3.1fN, %3.1fE)' % (dset_city.lat,dset_city.lon) ,
 	                    loc='upper left')
 
 	ax1 = plt.subplot(gs[1])
@@ -87,7 +90,7 @@ for city in cities:# This works regardless if cities is either single value or a
 	ts1 = ax1.plot(time, dset_city['2d'], label='2m $T_d$', color='darkcyan', linestyle='dashed')
 	ax1.axes.get_xaxis().set_ticklabels([])
 	plt.legend(fontsize=7)
-	ax1.set_ylabel('2m $T$/$T_d$ [deg C]')
+	ax1.set_ylabel('2m $T$, $T_d$ [$^{\circ}$C]')
 	ax1.xaxis.set_major_locator(mdates.HourLocator(interval=2))
 	ax1.grid(True, alpha=0.5)
 
@@ -112,19 +115,22 @@ for city in cities:# This works regardless if cities is either single value or a
 
 	ax3 = plt.subplot(gs[3])
 	ax3.set_xlim(time[0], time[-1])
-	ts = ax3.plot(time, rain_acc, label='Rain (acc.)', color='dodgerblue', linestyle='dashed')
-	ts1 = ax3.plot(time, snow_acc, label='Snow (acc.)', color='orchid', linestyle='dashed')
+	ts = ax3.plot(time_prec, rain_acc, label='Rain (acc.)', color='dodgerblue', linewidth=0.1)
+	ts1 = ax3.plot(time_prec, snow_acc, label='Snow (acc.)', color='orchid', linewidth=0.1)
+	ax3.fill_between(time_prec,rain_acc, y2=0, facecolor='dodgerblue', alpha=0.2)
+	ax3.fill_between(time_prec,snow_acc, y2=0, facecolor='orchid', alpha=0.2)
 	ax3.set_ylim(bottom=0)
-	ax3.legend(fontsize=7)
 	ax3.set_ylabel('Accum. [mm]')
 	ax33=ax3.twinx()
-	ts2 = ax33.plot(time, rain, label='Rain', color='dodgerblue')
-	ts3 = ax33.plot(time, snow, label='Snow', color='orchid')
+	ts2 = ax33.plot(time_prec, rain, label='Rain', color='dodgerblue')
+	ts3 = ax33.plot(time_prec, snow, label='Snow', color='orchid')
 	ax33.set_ylim(bottom=0)
 	ax33.set_ylabel('Inst. [mm h$^{-1}$]')
+	ax33.legend(fontsize=7)
 
 	ax3.grid(True, alpha=0.5)
 	ax3.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+	ax3.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
 	ax3.xaxis.set_major_formatter(DateFormatter('%d %b %HZ'))
 	for tick in ax3.get_xticklabels():
 	    tick.set_rotation(45)
