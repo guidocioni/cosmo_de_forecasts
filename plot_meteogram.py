@@ -34,18 +34,11 @@ dset_time = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].value
 dset_time = dset_time.metpy.parse_cf()
 hsurf = xr.open_dataset('/home/mpim/m300382/cosmo_de_forecasts/cosmo-d2-HSURF.nc')['HSURF']
 
-time = pd.to_datetime(dset_time.time.values)
+time = pd.to_datetime(dset_time.time.values) 
 time_prec = pd.to_datetime(dset.time.values)
-
-time_local = []
-for dt in time:
-	time_local.append(convert_timezone(dt))
-time_local = pd.to_datetime(time_local)
-
-time_prec_local = []
-for dt in time_prec:
-	time_prec_local.append(convert_timezone(dt))
-time_prec_local = pd.to_datetime(time_prec_local)
+time_local = convert_timezone(time)
+time_prec_local = convert_timezone(time_prec)
+increments = (time_prec[1:] - time_prec[:-1]) / pd.Timedelta('1 hour')
 
 for city in cities:# This works regardless if cities is either single value or array
 	print('Producing meteogram for %s' % city)
@@ -65,11 +58,10 @@ for city in cities:# This works regardless if cities is either single value or a
 
 	rain_acc = dset_city_prec['RAIN_GSP']
 	snow_acc = dset_city_prec['SNOW_GSP']
-	rain = rain_acc*0.
-	snow = snow_acc*0.
-	for i in range(1, len(dset_city_prec.time)):
-	    rain[i]=rain_acc[i]-rain_acc[i-1]
-	    snow[i]=snow_acc[i]-snow_acc[i-1]
+	rain = rain_acc.diff(dim='time', n=1) / increments
+	snow = snow_acc.diff(dim='time', n=1) / increments
+	rain = np.insert(rain, 0, 0)
+	snow = np.insert(snow, 0, 0) 
 
 	fig = plt.figure(figsize=(10, 10))
 	gs = gridspec.GridSpec(4, 1, height_ratios=[3, 1, 1, 1]) 

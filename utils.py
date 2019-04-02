@@ -104,7 +104,7 @@ def annotation_run(ax, time, loc='upper right',fontsize=8):
     ax.add_artist(at)
     return(at)
 
-def annotation_forecast(ax, time, loc='upper left',fontsize=8, local=True):
+def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
     """Put annotation of the forecast time."""
     if local: # convert to local time
         time = convert_timezone(time)
@@ -124,14 +124,14 @@ def convert_timezone(dt_from, from_tz='utc', to_tz='Europe/Berlin'):
     # remove again the timezone information
     return dt_to.tz_localize(None)
 
-def annotation_forecast_radar(ax, time, loc='upper left',fontsize=8):
+def annotation_forecast_radar(ax, time, loc='upper left', fontsize=8, local=True):
     """Put annotation of the forecast time."""
     if local: # convert to local time
         time = convert_timezone(time)
         at = AnchoredText('Valid %s' % time.strftime('%A %d %b %Y at %H:%M (Berlin)'), 
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     else:
-        at = AnchoredText('Forecast for %s' % time.strftime('%A %d %b %Y at %H:%M UTC'), 
+        at = AnchoredText('Valid %s' % time.strftime('%A %d %b %Y at %H:%M UTC'), 
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     ax.add_artist(at)
@@ -153,13 +153,8 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
 
 def get_colormap(cmap_type):
     """Create a custom colormap."""
-    if cmap_type == "winds":
-      colors_tuple = pd.read_csv('/home/mpim/m300382/cosmo_de_forecasts/cmap_winds.rgba').values 
-    elif cmap_type == "temp":
-      colors_tuple = pd.read_csv('/home/mpim/m300382/cosmo_de_forecasts/cmap_temp.rgba').values
-    elif cmap_type == "rh":
-      colors_tuple = pd.read_csv('/home/mpim/m300382/cosmo_de_forecasts/cmap_rh.rgba').values
-
+    colors_tuple = pd.read_csv('/home/mpim/m300382/icon_forecasts/cmap_%s.rgba' % cmap_type).values 
+         
     cmap = colors.LinearSegmentedColormap.from_list(cmap_type, colors_tuple, colors_tuple.shape[0])
     return(cmap)
 
@@ -177,7 +172,11 @@ def get_colormap_norm(cmap_type, levels):
         cmap, norm = from_levels_and_colors(levels, colors, extend='max')
     elif cmap_type == "rain_acc":    
         cmap, norm = from_levels_and_colors(levels, sns.color_palette('gist_stern_r', n_colors=len(levels)),
-                         extend='max')    
+                         extend='max')
+    elif cmap_type == "rain_new":
+        colors_tuple = pd.read_csv('/home/mpim/m300382/icon_forecasts/cmap_prec.rgba').values    
+        cmap, norm = from_levels_and_colors(levels, sns.color_palette(colors_tuple, n_colors=len(levels)),
+                         extend='max')
 
     return(cmap, norm)
 

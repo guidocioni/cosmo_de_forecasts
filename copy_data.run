@@ -85,7 +85,6 @@ ncftpput -R -V -DD altervista cosmo_de_forecasts/t850_pres t850_pres_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/t_v_pres t_v_pres*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/winds10m winds10m_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/precip_clouds precip_clouds_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/thetae_winds thetae_winds_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/hsnow hsnow_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_500 rh_500_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_700 rh_700_*
@@ -104,7 +103,6 @@ ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t850_pres it/t850_pres_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/winds10m it/winds10m_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/thetae_winds it/thetae_winds_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/hsnow it/hsnow_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_500 it/rh_500_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_700 it/rh_700_*
@@ -123,7 +121,6 @@ ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t850_pres nord/t850_pres_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/winds10m nord/winds10m_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/thetae_winds nord/thetae_winds_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/hsnow nord/hsnow_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_500 nord/rh_500_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_700 nord/rh_700_*

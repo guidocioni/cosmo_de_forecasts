@@ -48,7 +48,7 @@ def main():
     time = pd.to_datetime(dset.time.values)
     cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
 
-    levels_temp = np.arange(-30., 30., 1.)
+    levels_temp = np.arange(-30., 30., 2.)
     levels_mslp = np.arange(np.nanmin(mslp).astype("int"), np.nanmax(mslp).astype("int"), 7.)
 
     cmap = get_colormap('temp')
