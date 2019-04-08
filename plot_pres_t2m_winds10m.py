@@ -109,7 +109,7 @@ def plot_files(dates, **args):
         else:
             plt.savefig(filename, **options_savefig)        
         
-        remove_collections([cs, c, labels, an_fc, an_var, an_run])
+        remove_collections([cs, c, labels, an_fc, an_var, an_run, cv])
 
         first = False 
 

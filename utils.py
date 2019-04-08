@@ -10,6 +10,12 @@ import pandas as pd
 from matplotlib.colors import from_levels_and_colors
 import seaborn as sns
 
+import warnings
+warnings.filterwarnings(
+    action='ignore',
+    message='The unit of the quantity is stripped.'
+)
+
 folder = '/scratch/local1/m300382/cosmo_de_forecasts/'
 input_file=folder+'cosmo-d2_*.nc' 
 folder_images = folder 
@@ -38,6 +44,7 @@ def get_coordinates(dataset):
     dataset['lat'].metpy.convert_units('degreeE')
     # We have to return an array otherwise Basemap 
     # will complain
+    
     return(dataset['lon'].values, dataset['lat'].values)
 
 def get_city_coordinates(city):
@@ -45,6 +52,7 @@ def get_city_coordinates(city):
     from geopy.geocoders import Nominatim
     geolocator =Nominatim(user_agent='meteogram')
     loc = geolocator.geocode(city)
+    
     return(loc.longitude, loc.latitude)
 
 def get_projection(lon, lat, projection="de", countries=True, regions=True, labels=False):
@@ -87,6 +95,7 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
         m.drawcountries(linewidth=0.5, linestyle='solid', color='black', zorder=5)
 
     x, y = m(lon,lat)
+    
     return(m, x, y)
 
 def chunks(l, n):
@@ -102,6 +111,7 @@ def annotation_run(ax, time, loc='upper right',fontsize=8):
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     ax.add_artist(at)
+    
     return(at)
 
 def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
@@ -115,6 +125,7 @@ def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     ax.add_artist(at)
+    
     return(at)    
 
 def convert_timezone(dt_from, from_tz='utc', to_tz='Europe/Berlin'):
@@ -122,6 +133,7 @@ def convert_timezone(dt_from, from_tz='utc', to_tz='Europe/Berlin'):
     object, don't know if it works otherwise."""
     dt_to = dt_from.tz_localize(from_tz).tz_convert(to_tz)
     # remove again the timezone information
+    
     return dt_to.tz_localize(None)
 
 def annotation_forecast_radar(ax, time, loc='upper left', fontsize=8, local=True):
@@ -135,6 +147,7 @@ def annotation_forecast_radar(ax, time, loc='upper left', fontsize=8, local=True
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     ax.add_artist(at)
+    
     return(at) 
 
 def annotation(ax, text, loc='upper right',fontsize=8):
@@ -142,6 +155,7 @@ def annotation(ax, text, loc='upper right',fontsize=8):
     at = AnchoredText('%s'% text, prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     ax.add_artist(at)
+    
     return(at)
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
@@ -149,6 +163,7 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
     new_cmap = colors.LinearSegmentedColormap.from_list(
         'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
         cmap(np.linspace(minval, maxval, n)))
+    
     return(new_cmap)
 
 def get_colormap(cmap_type):
@@ -156,6 +171,7 @@ def get_colormap(cmap_type):
     colors_tuple = pd.read_csv('/home/mpim/m300382/icon_forecasts/cmap_%s.rgba' % cmap_type).values 
          
     cmap = colors.LinearSegmentedColormap.from_list(cmap_type, colors_tuple, colors_tuple.shape[0])
+    
     return(cmap)
 
 def get_colormap_norm(cmap_type, levels):

@@ -40,6 +40,7 @@ def main():
 
     # Select 850 hPa level using metpy
     cape = dset['CAPE_ML'].squeeze().load()
+    cin = dset['CIN_ML'].squeeze().load()
     uwind_850 = dset['u'].metpy.sel(vertical=850 * units.hPa).metpy.unit_array.to(units.kph)
     vwind_850 = dset['v'].metpy.sel(vertical=850 * units.hPa).metpy.unit_array.to(units.kph)
 
@@ -59,7 +60,7 @@ def main():
         m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
 
         # All the arguments that need to be passed to the plotting function
-        args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap,
+        args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap, cin=cin,
                  cape=cape, uwind_850=uwind_850, vwind_850=vwind_850, levels_cape=levels_cape,
                  time=time, projection=projection, cum_hour=cum_hour)
         
@@ -84,6 +85,8 @@ def plot_files(dates, **args):
 
         cs = args['ax'].contourf(args['x'], args['y'], args['cape'][i], extend='both', cmap=args['cmap'],
                                     levels=args['levels_cape'])
+        cr = args['ax'].contourf(args['x'], args['y'], args['cin'][i], levels=(-100.,-50.),
+                    colors='none', hatches=['...','...'], extend='min')
 
         density = 15
         cv = args['ax'].quiver(args['x'][::density,::density], args['y'][::density,::density],
@@ -91,18 +94,18 @@ def plot_files(dates, **args):
                      alpha=0.5, color='gray')
 
         an_fc = annotation_forecast(args['ax'],args['time'][i])
-        an_var = annotation(args['ax'], 'Convective Available Potential Energy and Winds' ,loc='lower left', fontsize=6)
+        an_var = annotation(args['ax'], 'CAPE and Winds@850 hPa, hatches CIN$<-50$ J/kg' ,loc='lower left', fontsize=6)
         an_run = annotation_run(args['ax'], args['time'])
 
         if first:
-            plt.colorbar(cs, orientation='horizontal', label='CAPE [J/kg]', pad=0.03, fraction=0.04)
+            plt.colorbar(cs, orientation='horizontal', label='CAPE [J/kg]', pad=0.04, fraction=0.03)
         
         if debug:
             plt.show(block=True)
         else:
             plt.savefig(filename, **options_savefig)        
         
-        remove_collections([cs, an_fc, an_var, an_run])
+        remove_collections([cs, an_fc, an_var, an_run, cv, cr])
 
         first = False 
 
