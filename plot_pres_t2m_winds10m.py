@@ -19,12 +19,12 @@ import sys
 # The one employed for the figure name when exported 
 variable_name = 't_v_pres'
 
-print('Starting script to plot '+variable_name)
+print_message('Starting script to plot '+variable_name)
 
 # Get the projection as system argument from the call so that we can 
 # span multiple instances of this script outside
 if not sys.argv[1:]:
-    print('Projection not defined, falling back to default (de, it, nord)')
+    print_message('Projection not defined, falling back to default (de, it, nord)')
     projections = ['de','it','nord']
 else:    
     projections=sys.argv[1:]
@@ -56,6 +56,7 @@ def main():
     cmap = get_colormap("temp")
     
     for projection in projections:# This works regardless if projections is either single value or array
+        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
         ax  = plt.gca()        
         m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
@@ -65,7 +66,7 @@ def main():
                  t2m=t2m, u=u, v=v, mslp=mslp, levels_t2m=levels_t2m, levels_mslp=levels_mslp,
                  time=time, projection=projection, cum_hour=cum_hour)
         
-        print('Pre-processing finished, launching plotting scripts')
+        print_message('Pre-processing finished, launching plotting scripts')
         if debug:
             plot_files(time[1:2], **args)
         else:
@@ -90,6 +91,11 @@ def plot_files(dates, **args):
                              levels=args['levels_mslp'], colors='white', linewidths=1.)
         labels = args['ax'].clabel(c, c.levels, inline=True, fmt='%4.0f' , fontsize=6)
 
+        maxlabels = plot_maxmin_points(args['ax'], args['x'], args['y'], args['mslp'][i],
+                                       'max', 80, symbol='H', color='royalblue', random=True)
+        minlabels = plot_maxmin_points(args['ax'], args['x'], args['y'], args['mslp'][i], 
+                                       'min', 80, symbol='L', color='coral', random=True)
+
         # We need to reduce the number of points before plotting the vectors,
         # these values work pretty well
         density = 15 
@@ -109,7 +115,7 @@ def plot_files(dates, **args):
         else:
             plt.savefig(filename, **options_savefig)        
         
-        remove_collections([cs, c, labels, an_fc, an_var, an_run, cv])
+        remove_collections([cs, c, labels, an_fc, an_var, an_run, cv, maxlabels, minlabels])
 
         first = False 
 

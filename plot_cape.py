@@ -19,12 +19,12 @@ import sys
 # The one employed for the figure name when exported 
 variable_name = 'cape_cin'
 
-print('Starting script to plot '+variable_name)
+print_message('Starting script to plot '+variable_name)
 
 # Get the projection as system argument from the call so that we can 
 # span multiple instances of this script outside
 if not sys.argv[1:]:
-    print('Projection not defined, falling back to default (de, it, nord)')
+    print_message('Projection not defined, falling back to default (de, it, nord)')
     projections = ['de','it','nord']
 else:    
     projections=sys.argv[1:]
@@ -55,6 +55,7 @@ def main():
     cmap = truncate_colormap(plt.get_cmap('gist_stern_r'), 0., 0.7)
     
     for projection in projections:# This works regardless if projections is either single value or array
+        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
         ax  = plt.gca()        
         m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
@@ -64,7 +65,7 @@ def main():
                  cape=cape, uwind_850=uwind_850, vwind_850=vwind_850, levels_cape=levels_cape,
                  time=time, projection=projection, cum_hour=cum_hour)
         
-        print('Pre-processing finished, launching plotting scripts')
+        print_message('Pre-processing finished, launching plotting scripts')
         if debug:
             plot_files(time[1:2], **args)
         else:

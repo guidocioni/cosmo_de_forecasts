@@ -19,12 +19,12 @@ import sys
 # The one employed for the figure name when exported 
 variable_name = 'radar'
 
-print('Starting script to plot '+variable_name)
+print_message('Starting script to plot '+variable_name)
 
 # Get the projection as system argument from the call so that we can 
 # span multiple instances of this script outside
 if not sys.argv[1:]:
-    print('Projection not defined, falling back to default (de, it, nord)')
+    print_message('Projection not defined, falling back to default (de, it, nord)')
     projections = ['de','it','nord']
 else:    
     projections=sys.argv[1:]
@@ -52,6 +52,7 @@ def main():
     cmap = truncate_colormap(plt.get_cmap('nipy_spectral'), 0.1, 1.0)
     
     for projection in projections:# This works regardless if projections is either single value or array
+        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
         ax  = plt.gca()        
         m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
@@ -63,7 +64,7 @@ def main():
                  dbz=dbz, levels_dbz=levels_dbz,time=time,
                  projection=projection, cum_hour=cum_hour)
         
-        print('Pre-processing finished, launching plotting scripts')
+        print_message('Pre-processing finished, launching plotting scripts')
         if debug:
             plot_files(time[1:2], **args)
         else:

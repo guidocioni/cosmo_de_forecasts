@@ -17,12 +17,12 @@ import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
 from matplotlib import gridspec
 
-print('Starting script to plot meteograms')
+print_message('Starting script to plot meteograms')
 
 # Get the projection as system argument from the call so that we can 
 # span multiple instances of this script outside
 if not sys.argv[1:]:
-	print('City not defined, falling back to default (Hamburg)')
+	print_message('City not defined, falling back to default (Hamburg)')
 	cities = ['Hamburg']
 else:    
 	cities=sys.argv[1:]
@@ -41,7 +41,7 @@ time_prec_local = convert_timezone(time_prec)
 increments = (time_prec[1:] - time_prec[:-1]) / pd.Timedelta('1 hour')
 
 for city in cities:# This works regardless if cities is either single value or array
-	print('Producing meteogram for %s' % city)
+	print_message('Producing meteogram for %s' % city)
 	lon, lat = get_city_coordinates(city)
 	dset_city =  dset_time.sel(lon=lon, lat=lat, method='nearest').load()
 	dset_city_prec = dset.sel(lon=lon, lat=lat, method='nearest').load()

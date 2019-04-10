@@ -19,12 +19,12 @@ import sys
 # The one employed for the figure name when exported 
 variable_name = 'precip_acc'
 
-print('Starting script to plot '+variable_name)
+print_message('Starting script to plot '+variable_name)
 
 # Get the projection as system argument from the call so that we can 
 # span multiple instances of this script outside
 if not sys.argv[1:]:
-    print('Projection not defined, falling back to default (de, it, nord)')
+    print_message('Projection not defined, falling back to default (de, it, nord)')
     projections = ['de','it','nord']
 else:    
     projections=sys.argv[1:]
@@ -55,6 +55,7 @@ def main():
     cmap, norm = get_colormap_norm("rain_acc", levels_precip)
 
     for projection in projections:# This works regardless if projections is either single value or array
+        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
         ax  = plt.gca()
         m, x, y =get_projection(lon2d, lat2d, projection)
@@ -67,7 +68,7 @@ def main():
                  levels_mslp=levels_mslp, time=time, projection=projection, cum_hour=cum_hour,
                  cmap=cmap, norm=norm)
         
-        print('Pre-processing finished, launching plotting scripts')
+        print_message('Pre-processing finished, launching plotting scripts')
         if debug:
             plot_files(time[1:2], **args)
         else:
@@ -95,7 +96,12 @@ def plot_files(dates, **args):
                              levels=args['levels_mslp'], colors='black', linewidths=1.)
 
         labels = args['ax'].clabel(c, c.levels, inline=True, fmt='%4.0f' , fontsize=6)
-        
+
+        maxlabels = plot_maxmin_points(args['ax'], args['x'], args['y'], args['mslp'][i],
+                                       'max', 80, symbol='H', color='royalblue', random=True)
+        minlabels = plot_maxmin_points(args['ax'], args['x'], args['y'], args['mslp'][i], 
+                                       'min', 80, symbol='L', color='coral', random=True)
+
         an_fc = annotation_forecast(args['ax'],args['time'][i])
         an_var = annotation(args['ax'], 'Accumulated precipitation and MSLP [hPa]' ,loc='lower left', fontsize=6)
         an_run = annotation_run(args['ax'], args['time'])
