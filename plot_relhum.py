@@ -51,7 +51,7 @@ def main():
         rh = dset['r'].load().metpy.sel(vertical=level * units.hPa)
         gph =  mpcalc.geopotential_to_height(dset['z'].load().metpy.sel(vertical=level * units.hPa))
 
-        levels_rh = np.arange(0, 100, 5)
+        levels_rh = np.arange(10, 100, 5)
         levels_gph = np.arange(np.nanmin(gph).astype("int"), np.nanmax(gph).astype("int"), 25.)
 
         for projection in projections:# This works regardless if projections is either single value or array
@@ -114,4 +114,8 @@ def plot_files(dates, **args):
         first = False 
 
 if __name__ == "__main__":
+    import time
+    start_time=time.time()
     main()
+    elapsed_time=time.time()-start_time
+    print_message("script took " + time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))

@@ -119,9 +119,13 @@ def plot_files(dates, **args):
         else:
             plt.savefig(filename, **options_savefig)        
         
-        remove_collections([c, cs, labels, an_fc, an_var, an_run, cv])
+        remove_collections([c, cs, labels, an_fc, an_var, an_run, cv, maxlabels, minlabels])
 
         first = False 
 
 if __name__ == "__main__":
+    import time
+    start_time=time.time()
     main()
+    elapsed_time=time.time()-start_time
+    print_message("script took " + time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))

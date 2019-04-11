@@ -10,7 +10,7 @@ import pandas as pd
 from matplotlib.colors import from_levels_and_colors
 import seaborn as sns
 import __main__ as main
-
+import os
 
 import warnings
 warnings.filterwarnings(
@@ -39,6 +39,77 @@ subfolder_images={
     'it' : folder_images+'it',
     'nord' : folder_images+'nord'    
 }
+
+folder_glyph = '/home/mpim/m300382/icons_weather/yrno_png/'
+WMO_GLYPH_LOOKUP_PNG={
+        '0' : '01',
+        '1' : '02',
+        '2' : '02',
+        '3' : '04',
+        '5' : '15',
+        '10': '15',
+        '14': '15',
+        '30': '15',
+        '40': '15',
+        '41': '15',
+        '42': '15',
+        '43': '15',
+        '44': '15',
+        '45': '15',
+        '46': '15',
+        '47': '15',
+        '50': '46',
+        '60': '09',
+        '61': '09',
+        '63': '10',
+        '64': '41',
+        '65': '12',
+        '68': '47',
+        '69': '48',
+        '70': '13',
+        '71': '49',
+        '73': '50',
+        '74': '45',
+        '75': '48',
+        '80': '05',
+        '81': '05',
+        '83': '41',
+        '84': '32',
+        '85': '08',
+        '86': '34',
+        '87': '45',
+        '89': '43',
+        '90': '30',
+        '91': '30',
+        '92': '25',
+        '93': '33',
+        '94': '34',
+        '95': '25',
+}
+
+def get_weather_icons(ww, time):
+    from matplotlib._png import read_png
+    """
+    Get the path to a png given the weather representation 
+    """
+    weather = [WMO_GLYPH_LOOKUP_PNG[w.astype(int).astype(str)] for w in ww.values]
+    weather_icons=[]
+    for date, weath in zip(time, weather):
+        if date.hour >= 6 and date.hour <= 18:
+            add_string='d'
+        elif date.hour >=0 and date.hour < 6:
+            add_string='n'
+        elif date.hour >18 and date.hour < 24:
+            add_string='n'
+
+        pngfile=folder_glyph+'%s.png' % (weath+add_string)
+        if os.path.isfile(pngfile):
+            weather_icons.append(read_png(pngfile))
+        else:
+            pngfile=folder_glyph+'%s.png' % weath
+            weather_icons.append(read_png(pngfile))
+
+    return(weather_icons)
 
 def print_message(message):
     """Formatted print"""
