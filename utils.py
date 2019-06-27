@@ -11,6 +11,8 @@ from matplotlib.colors import from_levels_and_colors
 import seaborn as sns
 import __main__ as main
 import os
+import matplotlib.patheffects as path_effects
+import matplotlib.cm as mplcm
 
 import warnings
 warnings.filterwarnings(
@@ -315,7 +317,6 @@ def plot_maxmin_points(ax, lon, lat, data, extrema, nsize, symbol, color='k',
     (e.g., clip_on=True)
     """
     from scipy.ndimage.filters import maximum_filter, minimum_filter
-    import matplotlib.patheffects as path_effects
 
     # We have to first add some random noise to the field, otherwise it will find many maxima
     # close to each other. This is not the best solution, though...
@@ -343,3 +344,37 @@ def plot_maxmin_points(ax, lon, lat, data, extrema, nsize, symbol, color='k',
                 horizontalalignment='center', verticalalignment='top', zorder=6) )
     
     return(texts)
+
+def add_vals_on_map(ax, bmap, var, levels, density=50,
+                     cmap='rainbow', shift_x=0., shift_y=0., fontsize=9, lcolors=True):
+    '''Given an input projection, a variable containing the values and a plot put
+    the values on a map exlcuing NaNs and taking care of not going
+    outside of the map boundaries, which can happen.
+    - shift_x and shift_y apply a shifting offset to all text labels
+    - colors indicate whether the colorscale cmap should be used to map the values of the array'''
+
+    norm = colors.Normalize(vmin=levels.min(), vmax=levels.max())
+    m = mplcm.ScalarMappable(norm=norm, cmap=cmap)
+    
+    lon_min, lon_max, lat_min, lat_max = bmap.llcrnrlon, bmap.urcrnrlon, bmap.llcrnrlat, bmap.urcrnrlat
+
+    # Remove values outside of the extents
+    var = var.sel(lat=slice(lat_min+0.15, lat_max-0.15), lon=slice(lon_min+0.15, lon_max-0.15))[::density, ::density]
+    var = var.dropna(dim='lon')
+    var = var.dropna(dim='lat')
+    lons = var.lon
+    lats = var.lat
+
+    at = []
+    for ilat, ilon in np.ndindex(var.shape):
+        if lcolors:
+            at.append(ax.annotate(('%d'%var[ilat, ilon]), (lons[ilon]+shift_x, lats[ilat]+shift_y),
+                             color = m.to_rgba(float(var[ilat, ilon])), weight='bold', fontsize=fontsize,
+                              path_effects=[path_effects.withStroke(linewidth=1, foreground="black")], zorder=5))
+        else:
+            at.append(ax.annotate(('%d'%var[ilat, ilon]), (lons[i]+shift_x, lats[i]+shift_y),
+                             color = 'white', weight='bold', fontsize=fontsize,
+                              path_effects=[path_effects.withStroke(linewidth=1, foreground="black")], zorder=5))
+
+    return at
+

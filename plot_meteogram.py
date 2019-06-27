@@ -53,8 +53,7 @@ for city in cities:# This works regardless if cities is either single value or a
     dset_city['2t'].metpy.convert_units('degC')
     dset_city['2d'] = dset_city['2d'].metpy.sel(height=2 * units.m)
     dset_city['2d'].metpy.convert_units('degC')
-    dset_city['10fg3'] = dset_city['10fg3'].metpy.sel(height=10 * units.m)
-    dset_city['10fg3'].metpy.convert_units('kph')
+    dset_city['VMAX_10M'] = dset_city['VMAX_10M'].metpy.sel(height=10 * units.m)*3.6
     dset_city['prmsl'].metpy.convert_units('hPa')
 
     # Open the single dataset for weather interpretation 
@@ -109,7 +108,7 @@ for city in cities:# This works regardless if cities is either single value or a
 
     ax2 = plt.subplot(gs[2])
     ax2.set_xlim(time_local[0],time_local[-1])
-    ts = ax2.plot(time_local, dset_city['10fg3'], label='Gusts', color='lightcoral')
+    ts = ax2.plot(time_local, dset_city['VMAX_10M'], label='Gusts', color='lightcoral')
     ax2.set_ylabel('Wind gust [km/h]')
     ax22=ax2.twinx()
     ts1 = ax22.plot(time_local, dset_city['prmsl'], label='MSLP', color='m')

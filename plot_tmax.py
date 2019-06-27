@@ -5,8 +5,8 @@ if not debug:
 
 import matplotlib.pyplot as plt
 import xarray as xr 
-import metpy.calc as mpcalc
-from metpy.units import units
+# import metpy.calc as mpcalc
+# from metpy.units import units
 from glob import glob
 import numpy as np
 import pandas as pd
@@ -15,19 +15,17 @@ from functools import partial
 import os 
 from utils import *
 import sys
-from matplotlib.colors import from_levels_and_colors
-import seaborn as sns
 
 # The one employed for the figure name when exported 
-variable_name = 'hsnow'
+variable_name = 'tmax'
 
 print_message('Starting script to plot '+variable_name)
 
 # Get the projection as system argument from the call so that we can 
 # span multiple instances of this script outside
 if not sys.argv[1:]:
-    print_message('Projection not defined, falling back to default (de, it, nord)')
-    projections = ['de','it','nord']
+    print_message('Projection not defined, falling back to default (it, de, nord)')
+    projections = ['it','de','nord']
 else:    
     projections=sys.argv[1:]
 
@@ -35,43 +33,33 @@ def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
     files = glob(input_file)
-    dset = xr.open_mfdataset(files)
+    dset = xr.open_mfdataset(files) 
     # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
+    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H')).load() 
     dset = dset.metpy.parse_cf()
 
-    hsnow_acc = dset['sde'].load()
-    hsnow = hsnow_acc*0.
-    for i, _ in enumerate(hsnow_acc[1:]):
-        hsnow[i] = (hsnow_acc[i] - hsnow_acc[0])*100.
-    hsnow = hsnow.where((hsnow>0.5) | (hsnow<-0.5))
-
-    snowlmt = dset['SNOWLMT'].metpy.unit_array.to('m')
-
+    #tmax2m = dset['mx2t6'].squeeze() - 273.15
+    tmax2m = dset['TMAX_2M'].metpy.sel(height=2 * units.m)-273.15
     lon, lat = get_coordinates(dset)
     lon2d, lat2d = np.meshgrid(lon, lat)
 
     time = pd.to_datetime(dset.time.values)
     cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
 
-    levels_hsnow = (-40, -30, -20, -10, -5, -2.5, -2, -1, -0.5, 0, 0.5, 1, 2, 2.5, 5, 10, 20, 30, 40)
-    levels_snowlmt = np.arange(0., 3000., 500.)
+    levels_t2m = np.arange(-25, 35, 1)
 
-    cmap, norm = from_levels_and_colors(levels_hsnow, sns.color_palette("PuOr", n_colors=len(levels_hsnow)+1),
-                                                    extend='both')
+    cmap = get_colormap("temp")
     
     for projection in projections:# This works regardless if projections is either single value or array
         print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
         ax  = plt.gca()        
         m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
-        img=m.arcgisimage(service='World_Shaded_Relief', xpixels = 1000, verbose=False)
-        img.set_alpha(0.8)
 
         # All the arguments that need to be passed to the plotting function
-        args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap, norm=norm,
-                 hsnow=hsnow, snowlmt=snowlmt, levels_hsnow=levels_hsnow,
-                 levels_snowlmt=levels_snowlmt, time=time, projection=projection, cum_hour=cum_hour)
+        args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap,
+                 tmax2m=tmax2m, levels_t2m=levels_t2m,
+                 time=time, projection=projection, cum_hour=cum_hour)
         
         print_message('Pre-processing finished, launching plotting scripts')
         if debug:
@@ -90,30 +78,35 @@ def plot_files(dates, **args):
         # Find index in the original array to subset when plotting
         i = np.argmin(np.abs(date - args['time'])) 
         # Build the name of the output image
-        filename = subfolder_images[args['projection']]+'/'+variable_name+'_%s.png' % args['cum_hour'][i]#date.strftime('%Y%m%d%H')#
+        filename = subfolder_images[args['projection']]+'/'+variable_name+'_%s.png' % args['cum_hour'][i]
 
-        cs = args['ax'].contourf(args['x'], args['y'], args['hsnow'][i], extend='both', cmap=args['cmap'],
-                                    norm=args['norm'], levels=args['levels_hsnow'])
-
-        # Unfortunately m.contour with tri = True doesn't work because of a bug 
-        c = args['ax'].contour(args['x'], args['y'], args['snowlmt'][i], levels=args['levels_snowlmt'],
-                             colors='red', linewidths=0.5)
-
-        labels = args['ax'].clabel(c, c.levels, inline=True, fmt='%4.0f' , fontsize=5)
+        cs = args['ax'].contourf(args['x'], args['y'], args['tmax2m'][i], extend='both', cmap=args['cmap'],
+                                    levels=args['levels_t2m'])
         
+        # plot every -th element
+        if args['projection']=="nord":
+            density = 12
+        elif args['projection']=="it":
+            density = 12
+        elif args['projection']=="de":
+            density = 18
+        
+        vals = add_vals_on_map(args['ax'], args['m'], args['tmax2m'][i], args['levels_t2m'], cmap=args['cmap'],
+                                density=density)
+
         an_fc = annotation_forecast(args['ax'],args['time'][i])
-        an_var = annotation(args['ax'], 'Snow depth change since initialization time' ,loc='lower left', fontsize=6)
+        an_var = annotation(args['ax'], 'Maximum 2m Temperature in last 6 hours' ,loc='lower left', fontsize=6)
         an_run = annotation_run(args['ax'], args['time'])
 
         if first:
-            plt.colorbar(cs, orientation='horizontal', label='Snow depth change [m]', pad=0.035, fraction=0.03)
+            plt.colorbar(cs, orientation='horizontal', label='Temperature [C]', pad=0.03, fraction=0.04)
         
         if debug:
             plt.show(block=True)
         else:
             plt.savefig(filename, **options_savefig)        
         
-        remove_collections([c, cs, labels, an_fc, an_var, an_run])
+        remove_collections([cs, an_fc, an_var, an_run, vals])
 
         first = False 
 

@@ -6,13 +6,13 @@ export SHELL=$(type -p bash)
 ########################################### 
 
 ##### LOAD environmental variables ########
-export cdo=/sw/jessie-x64/cdo-1.8.0-gccsys/bin/cdo
-export python="/home/mpim/m300382/.conda/envs/my_base/bin/python -W ignore"
+export cdo=/sw/stretch-x64/cdo/cdo-1.9.6-gccsys/bin/cdo
+export python=/home/mpim/m300382/.conda/envs/my_base/bin/python
 export parallel=/home/mpim/m300382/.conda/envs/my_base/bin/parallel
 ########################################### 
 
 export QT_QPA_PLATFORM=offscreen # Needed to avoid errors when using Python without display
-source /sw/jessie-x64/anaconda2-4.1.1/bin/activate my_base
+source /sw/stretch-x64/conda/anaconda3-5.3.0-python-3.7/bin/activate my_base
 
 export year=`date +"%Y"`
 export month=`date +"%m"`
@@ -63,11 +63,11 @@ rm cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc
 variables=("T_2M" "TD_2M" "U_10M" "V_10M" "VMAX_10M" "PMSL" "CAPE_ML" "DBZ_CMAX" "CIN_ML" "RELHUM_2M" "H_SNOW" "HZEROCL" "SNOWLMT" "TMAX_2M" "TMIN_2M" "CLCL" "CLCH" "TOT_PREC" "SNOW_GSP" "RAIN_GSP" "WW")
 ${parallel} -j 8 download_merge_2d_variable_cosmo_d2 ::: "${variables[@]}"
 
-${python} plot_meteogram.py Hamburg Pisa Milano Brocken
+${python} plot_meteogram.py Hamburg Pisa Milano Brocken Toulouse Utrecht
 
 ncftpput -R -v -DD altervista cosmo_de_forecasts/meteograms meteogram_*
 
-scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_rain_acc.py" "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py" "plot_winter.py")
+scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_rain_acc.py" "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py" "plot_winter.py" "plot_tmax.py")
 projections=("de" "it" "nord")
 
 ${parallel} -j 8 ${python} ::: "${scripts[@]}" ::: "${projections[@]}"
@@ -96,6 +96,7 @@ ncftpput -R -V -DD altervista cosmo_de_forecasts/t_850 t_850_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/t_950 t_950_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/winter winter_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/precip_acc precip_acc_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/tmax tmax_*
 
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/cape_cin it/cape_cin_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/radar it/radar_*
@@ -114,6 +115,7 @@ ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_850 it/t_850_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_950 it/t_950_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/winter it/winter_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/it/precip_acc it/precip_acc_*
+ncftpput -R -V -DD altervista cosmo_de_forecasts/it/tmax it/tmax_*
 
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/cape_cin nord/cape_cin_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/radar nord/radar_*
@@ -132,7 +134,7 @@ ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_850 nord/t_850_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_950 nord/t_950_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/winter nord/winter_*
 ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/precip_acc nord/precip_acc_*
-
+ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/tmax nord/tmax_*
 
 # remove from local directory
 rm *.png
