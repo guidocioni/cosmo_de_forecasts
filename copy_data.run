@@ -1,19 +1,30 @@
-#!/bin/bash
+#!/usr/local/bin/bash
+
+# Folder to be used to download and process data
+export MODEL_DATA_FOLDER="/Volumes/Data/temp/cosmo-d2/"
+export HOME_FOLDER=$(pwd)
+export N_CONCUR_PROCESSES=4 
+export NCFTP_BOOKMARK="altervista"
+DATA_DOWNLOAD=true
+DATA_PLOTTING=false
+DATA_UPLOAD=false
 
 ##### LOAD functions to download model data
-. ~/functions_download_dwd.sh
+. ./functions_download_dwd.sh
 export SHELL=$(type -p bash)
+# We need to open many files at the same time
+ulimit -Sn 4096
+source ~/.bash_profile
+# acivate our environment 
+#conda activate nwp-py2
 ########################################### 
 
-##### LOAD environmental variables ########
-export cdo=/sw/stretch-x64/cdo/cdo-1.9.6-gccsys/bin/cdo
-export python=/home/mpim/m300382/.conda/envs/my_base/bin/python
-export parallel=/home/mpim/m300382/.conda/envs/my_base/bin/parallel
-########################################### 
+###########################################
 
-export QT_QPA_PLATFORM=offscreen # Needed to avoid errors when using Python without display
-source /sw/stretch-x64/conda/anaconda3-5.3.0-python-3.7/bin/activate my_base
+mkdir -p ${MODEL_DATA_FOLDER}it
+mkdir -p ${MODEL_DATA_FOLDER}de
 
+# Retrieve run ##########################
 export year=`date +"%Y"`
 export month=`date +"%m"`
 export day=`date +"%d"`
@@ -48,111 +59,101 @@ fi
 
 export run
 
-cd /scratch/local1/m300382/cosmo_de_forecasts
-rm *.nc
-cp /home/mpim/m300382/cosmo_de_forecasts/*.py ./
+###########################################
 
-#3-D variables
-variables=("T" "FI" "RELHUM" "U" "V")
-${parallel} -j 8 download_merge_3d_variable_cosmo_d2 ::: "${variables[@]}"
+# Move to the data folder to do processing
+cd ${MODEL_DATA_FOLDER} || { echo 'Cannot change to DATA folder' ; exit 1; }
 
-${cdo} merge cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc cosmo-d2_germany_pressure-level_${year}${month}${day}${run}.nc
-rm cosmo-d2_germany_pressure-level_${year}${month}${day}${run}_*.nc
+# SECTION 1 - DATA DOWNLOAD ############################################################
 
-#2-D variables
-variables=("T_2M" "TD_2M" "U_10M" "V_10M" "VMAX_10M" "PMSL" "CAPE_ML" "DBZ_CMAX" "CIN_ML" "RELHUM_2M" "H_SNOW" "HZEROCL" "SNOWLMT" "TMAX_2M" "TMIN_2M" "CLCL" "CLCH" "TOT_PREC" "SNOW_GSP" "RAIN_GSP" "WW")
-${parallel} -j 8 download_merge_2d_variable_cosmo_d2 ::: "${variables[@]}"
+if [ "$DATA_DOWNLOAD" = true ]; then
+	# Remove older files
+	rm ${MODEL_DATA_FOLDER}*.nc
+	rm ${MODEL_DATA_FOLDER}*.grib2
 
-${python} plot_meteogram.py Hamburg Pisa Milano Brocken Toulouse Utrecht
+	# Invariant
+	download_invariant_cosmo_d2
 
-ncftpput -R -v -DD altervista cosmo_de_forecasts/meteograms meteogram_*
+	#2-D variables
+	variables=("T_2M" "TD_2M" "U_10M" "V_10M" "PMSL" "CAPE_ML" "VMAX_10M" "TOT_PREC" \
+	"CLCL" "CLCH" "CLCT" "SNOWLMT" "HZEROCL" "H_SNOW" "SNOW_GSP"\
+	"RAIN_GSP" "TMAX_2M" "TMIN_2M" "WW" "DBZ_CMAX" "CIN_ML" "RELHUM_2M" )
+	parallel -j ${N_CONCUR_PROCESSES} --delay 1 download_merge_2d_variable_cosmo_d2 ::: "${variables[@]}"
 
-scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_rain_acc.py" "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py" "plot_winter.py" "plot_tmax.py")
-projections=("de" "it" "nord")
+	#3-D variables on pressure levels
+	variables=("T" "FI" "RELHUM" "U" "V")
+	parallel -j ${N_CONCUR_PROCESSES} --delay 2 download_merge_3d_variable_cosmo_d2 ::: "${variables[@]}"
 
-${parallel} -j 8 ${python} ::: "${scripts[@]}" ::: "${projections[@]}"
+fi 
 
-# Upload files to the server
-#Note that for this to work a new bookmark needs to be created beforehand in ncftp
-# > ncftp 
-# > open -u user -p password ftp.server 
-# > bookmark name_of_the_bookmark
-# password is encoded using base64
+############################################################
 
-ncftpput -R -V -DD altervista cosmo_de_forecasts/cape_cin cape_cin_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/radar radar_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/t850_pres t850_pres_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/t_v_pres t_v_pres*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/winds10m winds10m_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/precip_clouds precip_clouds_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/hsnow hsnow_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_500 rh_500_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_700 rh_700_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_850 rh_850_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/rh_950 rh_950_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/t_500 t_500_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/t_700 t_700_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/t_850 t_850_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/t_950 t_950_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/winter winter_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/precip_acc precip_acc_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/tmax tmax_*
 
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/cape_cin it/cape_cin_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/radar it/radar_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t850_pres it/t850_pres_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_v_pres it/t_v_pres*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/winds10m it/winds10m_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/precip_clouds it/precip_clouds_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/hsnow it/hsnow_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_500 it/rh_500_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_700 it/rh_700_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_850 it/rh_850_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/rh_950 it/rh_950_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_500 it/t_500_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_700 it/t_700_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_850 it/t_850_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/t_950 it/t_950_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/winter it/winter_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/precip_acc it/precip_acc_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/it/tmax it/tmax_*
+# SECTION 2 - DATA PLOTTING ############################################################
 
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/cape_cin nord/cape_cin_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/radar nord/radar_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t850_pres nord/t850_pres_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_v_pres nord/t_v_pres*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/winds10m nord/winds10m_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/precip_clouds nord/precip_clouds_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/hsnow nord/hsnow_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_500 nord/rh_500_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_700 nord/rh_700_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_850 nord/rh_850_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/rh_950 nord/rh_950_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_500 nord/t_500_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_700 nord/t_700_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_850 nord/t_850_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/t_950 nord/t_950_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/winter nord/winter_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/precip_acc nord/precip_acc_*
-ncftpput -R -V -DD altervista cosmo_de_forecasts/nord/tmax nord/tmax_*
+if [ "$DATA_PLOTTING" = true ]; then
+	python --version
+	cp ${HOME_FOLDER}/plotting/*.py ${MODEL_DATA_FOLDER}
 
-# remove from local directory
-rm *.png
-rm it/*.png
-rm nord/*.png
+	export QT_QPA_PLATFORM=offscreen # Needed to avoid errors when using Python without display
 
-# archive data on pftp
+	python plot_meteogram.py Hamburg Pisa Milano Brocken Toulouse Utrecht
 
-# tar -cvf ${year}${month}${day}${run}.tar *.nc
+	scripts=("plot_cape.py" "plot_hsnow.py" "plot_pres_t2m_winds10m.py" "plot_rain_clouds.py" "plot_rain_acc.py"\
+		     "plot_reflectivity.py" "plot_relhum.py" "plot_t.py" "plot_t850_pres.py" "plot_winds10m.py"\
+		     "plot_winter.py" "plot_tmax.py")
 
-# /client/bin/pftp <<EOF
-# user m300382 password
-# cd bm0682/m300382/cosmo_de_forecasts
-# mput *.tar
-# bye
-# EOF
+	projections=("de" "it" "nord")
 
-# rm *.tar
-rm *.py
+	parallel -j ${N_CONCUR_PROCESSES} python ::: "${scripts[@]}" ::: "${projections[@]}"
+fi
 
-cd 
+############################################################
+
+# SECTION 3 - IMAGES UPLOAD ############################################################
+# Use ncftpbookmarks to add a new FTP server with credentials
+if [ "$DATA_UPLOAD" = true ]; then
+	# First upload meteograms
+	ncftpput -R -v ${NCFTP_BOOKMARK} cosmo_de_forecasts/meteograms meteogram_*
+	#
+	# Then upload the other pictures
+	#
+	images_output=("cape_cin" "radar" "t850_pres" "t_v_pres" "winds10m" "precip_clouds"\
+		"hsnow" "rh_500" "rh_700" "rh_850" "rh_950" "t_500" "t_700" "t_850" "t_950"\
+		"winter" "precip_acc" "tmax")
+
+	# suffix for naming
+	projections_output=("" "it/" "nord/")
+	# remote folder on server
+	projections_output_folder=("cosmo_de_forecasts" "cosmo_de_forecasts/it" "cosmo_de_forecasts/nord")
+
+	# Create a lisf of all the images to upload 
+	upload_elements=()
+	for i in "${!projections_output[@]}"; do
+		for j in "${images_output[@]}"; do
+			upload_elements+=("${projections_output_folder[$i]}/${j} ./${projections_output[$i]}${j}_*")
+		done
+	done
+
+	# Finally upload the images 
+	for k in "${upload_elements[@]}"; do
+		ncftpput -R -v ${NCFTP_BOOKMARK} ${k}
+	done
+
+	# To be parallelized in the future if the FTP server accepts multiple connections
+	# this doesn't work 
+	# parallel -j 2 ncftpput -R -v ${NCFTP_BOOKMARK} ::: "${upload_elements[@]}"
+
+fi 
+
+# SECTION 4 - CLEANING ############################################################
+
+#Remove images locally
+rm ${MODEL_DATA_FOLDER}*.png
+rm ${MODEL_DATA_FOLDER}de/*.png
+rm ${MODEL_DATA_FOLDER}it/*.png
+rm ${MODEL_DATA_FOLDER}*.py
+
+############################################################
+
+cd -
