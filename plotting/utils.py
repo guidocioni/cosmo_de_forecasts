@@ -1,18 +1,18 @@
-# Configuration file for some common variables to all script 
-from mpl_toolkits.basemap import Basemap  # import Basemap matplotlib toolkit
 import numpy as np
 from matplotlib.offsetbox import AnchoredText
 import matplotlib.colors as colors
-import seaborn as sns
-import metpy.calc as mpcalc
-from metpy.units import units
 import pandas as pd
 from matplotlib.colors import from_levels_and_colors
 import seaborn as sns
-import __main__ as main
 import os
 import matplotlib.patheffects as path_effects
 import matplotlib.cm as mplcm
+import sys
+from glob import glob
+import xarray as xr
+from matplotlib.colors import BoundaryNorm
+import metpy
+import re
 
 import warnings
 warnings.filterwarnings(
@@ -20,19 +20,18 @@ warnings.filterwarnings(
     message='The unit of the quantity is stripped.'
 )
 
-folder = '/scratch/local1/m300382/cosmo_de_forecasts/'
-input_file=folder+'cosmo-d2_*.nc' 
-folder_images = folder 
-chunks_size = 10 
-processes = 5
+folder = os.environ['MODEL_DATA_FOLDER']
+folder_images = os.environ['MODEL_DATA_FOLDER']
+chunks_size = 10
+processes = int(os.environ['N_CONCUR_PROCESSES'])
 figsize_x = 10 
 figsize_y = 8
+invariant_file = folder+'HSURF_*.nc' 
 
 # Options for savefig
 options_savefig={
     'dpi':100,
-    'bbox_inches':'tight',
-    'transparent':True
+    'bbox_inches':'tight'
 }
 
 # Dictionary to map the output folder based on the projection employed
@@ -42,13 +41,13 @@ subfolder_images={
     'nord' : folder_images+'nord'    
 }
 
-folder_glyph = '/home/mpim/m300382/icons_weather/yrno_png/'
+folder_glyph = os.environ['HOME_FOLDER'] + '/plotting/yrno_png/'
 WMO_GLYPH_LOOKUP_PNG={
-        '0' : '01',
-        '1' : '02',
-        '2' : '02',
-        '3' : '04',
-        '5' : '15',
+        '0': '01',
+        '1': '02',
+        '2': '02',
+        '3': '04',
+        '5': '15',
         '10': '15',
         '14': '15',
         '30': '15',
@@ -61,6 +60,8 @@ WMO_GLYPH_LOOKUP_PNG={
         '46': '15',
         '47': '15',
         '50': '46',
+        '52': '46',
+        '53': '46',
         '60': '09',
         '61': '09',
         '63': '10',
@@ -89,8 +90,42 @@ WMO_GLYPH_LOOKUP_PNG={
         '95': '25',
 }
 
+proj_defs = {
+    'nord':
+    {
+        'projection': 'cyl',
+        'llcrnrlon': 4,
+        'llcrnrlat': 50,
+        'urcrnrlon': 12,
+        'urcrnrlat': 56,
+        'resolution': 'i',
+        'epsg': 4269
+    },
+    'it':
+    {
+        'projection': 'cyl',
+        'llcrnrlon': 5.5,
+        'llcrnrlat': 43.5,
+        'urcrnrlon': 14.5,
+        'urcrnrlat': 48,
+        'resolution': 'i',
+        'epsg': 4269
+    },
+    'de':
+    {
+        'projection': 'cyl',
+        'llcrnrlon': 5,
+        'llcrnrlat': 46.5,
+        'urcrnrlon': 16,
+        'urcrnrlat': 56,
+        'resolution': 'i',
+        'epsg': 4269
+    }
+}
+
+
 def get_weather_icons(ww, time):
-    from matplotlib._png import read_png
+    from matplotlib.image import imread as read_png
     """
     Get the path to a png given the weather representation 
     """
@@ -113,33 +148,99 @@ def get_weather_icons(ww, time):
 
     return(weather_icons)
 
+
+def subset_arrays(arrs, proj):
+    """Given an input projection created with basemap or cartopy subset the input arrays 
+    on the boundaries"""
+    proj_options = proj_defs[proj]
+    out = []
+    for arr in arrs:
+        out.append(arr.metpy.sel(lat=slice(proj_options['llcrnrlat'], proj_options['urcrnrlat']),
+                            lon=slice(proj_options['llcrnrlon'], proj_options['urcrnrlon'])))
+
+    return out
+
+
+def read_dataset(variables = ['T_2M', 'TD_2M']):
+    """Wrapper to initialize the dataset"""
+    # Create the regex for the files with the needed variables
+    variables_search = '('+'|'.join(variables)+')'
+    # Get a list of all the files in the folder
+    # In the future we can use Run/Date to have a more selective glob pattern
+    files = glob(folder+'*.nc')
+    # find only the files with the variables that we need 
+    needed_files = [f for f in files if re.search(r'/%s(?:_\d{10})' % variables_search, f)]
+    dset = xr.open_mfdataset(needed_files, preprocess=preprocess)
+    # NOTE!! Even though we use open_mfdataset, which creates a Dask array, we then 
+    # load the dataset into memory since otherwise the object cannot be pickled by 
+    # multiprocessing
+    dset = dset.metpy.parse_cf()
+    time, cum_hour = read_time(dset)
+
+    return dset, time, cum_hour
+
+
+def preprocess(ds):
+    '''Additional preprocessing step to apply to the datasets'''
+    # correct gust attributes typo
+    if 'VMAX_10M' in ds.variables.keys():
+        ds['VMAX_10M'].attrs['units'] = 'm/s'
+    if 'plev_bnds' in ds.variables.keys():
+        ds = ds.drop('plev_bnds')
+
+    return ds.squeeze(drop=True)
+
+
+def read_time(dset):
+    """Read time properly (as datetime object) from dataset
+    and compute forecast lead time as cumulative hour"""
+    time = pd.to_datetime(dset.time.values)
+    cum_hour = np.array((time - time[0]) /
+                        pd.Timedelta('1 hour')).astype("int")
+
+    return time, cum_hour
+
+
 def print_message(message):
     """Formatted print"""
-    print(main.__file__+' : '+message)
+    print(os.path.basename(sys.argv[0])+' : '+message)
 
-def get_coordinates(dataset):
-    """Get the lat/lon coordinates from the dataset and convert them to degrees."""
-    dataset['lon'].metpy.convert_units('degreeN')
-    dataset['lat'].metpy.convert_units('degreeE')
-    # We have to return an array otherwise Basemap 
-    # will complain
-    
-    return(dataset['lon'].values, dataset['lat'].values)
+
+def get_coordinates(ds):
+    """Get the lat/lon coordinates from the ds and convert them to degrees.
+    Usually this is only used to prepare the plotting."""
+    if ('lat' in ds.coords.keys()) and ('lon' in ds.coords.keys()):
+        longitude = ds['lon']
+        latitude = ds['lat']
+    elif ('latitude' in ds.coords.keys()) and ('longitude' in ds.coords.keys()):
+        longitude = ds['longitude']
+        latitude = ds['latitude']
+    elif ('lat2d' in ds.coords.keys()) and ('lon2d' in ds.coords.keys()):
+        longitude = ds['lon2d']
+        latitude = ds['lat2d']
+
+    if longitude.max() > 180:
+        longitude = (((longitude.lon + 180) % 360) - 180)
+
+    return(longitude.values, latitude.values)
+
 
 def get_city_coordinates(city):
     """Get the lat/lon coordinates of a city given its name using geopy."""
     from geopy.geocoders import Nominatim
     geolocator =Nominatim(user_agent='meteogram')
     loc = geolocator.geocode(city)
-    
+
     return(loc.longitude, loc.latitude)
 
+
 def get_projection(lon, lat, projection="de", countries=True, regions=True, labels=False):
+    from mpl_toolkits.basemap import Basemap
+    proj_options = proj_defs[projection]
+    m = Basemap(**proj_options)
     if projection=="de":
-        m = Basemap(projection='cyl', llcrnrlon=5, llcrnrlat=46.5,\
-               urcrnrlon=16, urcrnrlat=56,  resolution='i',epsg=4269)
         if regions:
-            m.readshapefile('/home/mpim/m300382/shapefiles/DEU_adm_shp/DEU_adm1',
+            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm_shp/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -147,10 +248,8 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
             m.drawmeridians(np.arange(-180.,181.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)
     elif projection=="it":
-        m = Basemap(projection='cyl', llcrnrlon=5.5, llcrnrlat=43.5,\
-               urcrnrlon=14.5, urcrnrlat=48.,  resolution='i',epsg=4269)
         if regions:
-            m.readshapefile('/home/mpim/m300382/shapefiles/ITA_adm_shp/ITA_adm1',
+            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/ITA_adm_shp/ITA_adm1',
                             'ITA_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -158,23 +257,21 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
             m.drawmeridians(np.arange(-180.,181.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)
     elif projection=="nord":
-        m = Basemap(projection='cyl', llcrnrlon=4., llcrnrlat=50.,\
-               urcrnrlon=12., urcrnrlat=56.,  resolution='i',epsg=4269)
         if regions:
-            m.readshapefile('/home/mpim/m300382/shapefiles/DEU_adm_shp/DEU_adm1',
+            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm_shp/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)
             m.drawmeridians(np.arange(-180.,181.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)
-        
+
     m.drawcoastlines(linewidth=0.5, linestyle='solid', color='black', zorder=5)
     if countries:
         m.drawcountries(linewidth=0.5, linestyle='solid', color='black', zorder=5)
 
-    x, y = m(lon,lat)
-    
+    x, y = m(lon, lat)
+
     return(m, x, y)
 
 def chunks(l, n):
@@ -191,10 +288,11 @@ def annotation_run(ax, time, loc='upper right',fontsize=8):
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     at.zorder = 10
     ax.add_artist(at)
-    
+
     return(at)
 
-def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
+
+def annotation_forecast(ax, time, loc='upper left',fontsize=8, local=True):
     """Put annotation of the forecast time."""
     if local: # convert to local time
         time = convert_timezone(time)
@@ -206,16 +304,27 @@ def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     at.zorder = 10
     ax.add_artist(at)
-    
+
     return(at)    
+
 
 def convert_timezone(dt_from, from_tz='utc', to_tz='Europe/Berlin'):
     """Convert between two timezones. dt_from needs to be a Timestamp 
     object, don't know if it works otherwise."""
     dt_to = dt_from.tz_localize(from_tz).tz_convert(to_tz)
     # remove again the timezone information
-    
+
     return dt_to.tz_localize(None)
+
+def annotation(ax, text, loc='upper right',fontsize=8):
+    """Put a general annotation in the plot."""
+    at = AnchoredText('%s'% text, prop=dict(size=fontsize), frameon=True, loc=loc)
+    at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
+    at.zorder = 10
+    ax.add_artist(at)
+    
+    return(at)
+
 
 def annotation_forecast_radar(ax, time, loc='upper left', fontsize=8, local=True):
     """Put annotation of the forecast time."""
@@ -232,29 +341,22 @@ def annotation_forecast_radar(ax, time, loc='upper left', fontsize=8, local=True
     
     return(at) 
 
-def annotation(ax, text, loc='upper right',fontsize=8):
-    """Put a general annotation in the plot."""
-    at = AnchoredText('%s'% text, prop=dict(size=fontsize), frameon=True, loc=loc)
-    at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
-    at.zorder = 10
-    ax.add_artist(at)
-    
-    return(at)
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
     """Truncate a colormap by specifying the start and endpoint."""
     new_cmap = colors.LinearSegmentedColormap.from_list(
         'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
         cmap(np.linspace(minval, maxval, n)))
-    
+
     return(new_cmap)
+
 
 def get_colormap(cmap_type):
     """Create a custom colormap."""
-    colors_tuple = pd.read_csv('/home/mpim/m300382/cosmo_de_forecasts/cmap_%s.rgba' % cmap_type).values 
-         
+    colors_tuple = pd.read_csv(os.environ['HOME_FOLDER'] + '/plotting/cmap_%s.rgba' % cmap_type).values 
+
     cmap = colors.LinearSegmentedColormap.from_list(cmap_type, colors_tuple, colors_tuple.shape[0])
-    
+
     return(cmap)
 
 def get_colormap_norm(cmap_type, levels):
@@ -273,10 +375,14 @@ def get_colormap_norm(cmap_type, levels):
         cmap, norm = from_levels_and_colors(levels, sns.color_palette('gist_stern_r', n_colors=len(levels)),
                          extend='max')
     elif cmap_type == "rain_new":
-        colors_tuple = pd.read_csv('/home/mpim/m300382/cosmo_de_forecasts/cmap_prec.rgba').values    
+        colors_tuple = pd.read_csv(os.environ['HOME_FOLDER'] + '/plotting/cmap_prec.rgba').values    
         cmap, norm = from_levels_and_colors(levels, sns.color_palette(colors_tuple, n_colors=len(levels)),
                          extend='max')
-
+    elif cmap_type == "winds":
+        colors_tuple = pd.read_csv(os.environ['HOME_FOLDER'] + '/plotting/cmap_winds.rgba').values    
+        cmap, norm = from_levels_and_colors(levels, sns.color_palette(colors_tuple, n_colors=len(levels)),
+                         extend='max')
+    
     return(cmap, norm)
 
 def remove_collections(elements):
