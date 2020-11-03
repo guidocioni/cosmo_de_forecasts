@@ -33,32 +33,32 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
-    dset = dset.metpy.parse_cf()
-
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    time = pd.to_datetime(dset.time.values)
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
+    dset, time, cum_hour  = read_dataset(variables=['RELHUM', 'FI'])
 
     cmap = get_colormap('rh')
 
     for level in levels:    
-        rh = dset['r'].load().metpy.sel(vertical=level * units.hPa)
-        gph =  mpcalc.geopotential_to_height(dset['z'].load().metpy.sel(vertical=level * units.hPa))
+        rh = dset['r'].metpy.sel(vertical=level * units.hPa).load()
+        z = dset['z'].metpy.sel(vertical=level * units.hPa).load()
+        gph = mpcalc.geopotential_to_height(z)
+        gph = xr.DataArray(gph, coords=z.coords,
+                               attrs={'standard_name': 'geopotential height',
+                                      'units': gph.units})
 
         levels_rh = np.arange(10, 100, 5)
         levels_gph = np.arange(np.nanmin(gph).astype("int"), np.nanmax(gph).astype("int"), 25.)
 
         for projection in projections:# This works regardless if projections is either single value or array
-            print_message('Projection = %s' % projection)
             fig = plt.figure(figsize=(figsize_x, figsize_y))
+
             ax  = plt.gca()        
-            m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
+
+            rh, gph = subset_arrays([rh, gph], projection)
+
+            lon, lat = get_coordinates(rh)
+            lon2d, lat2d = np.meshgrid(lon, lat)
+
+            m, x, y = get_projection(lon2d, lat2d, projection, labels=True)
 
             # All the arguments that need to be passed to the plotting function
             args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap, level=level,

@@ -4,8 +4,6 @@ if not debug:
     matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
-import xarray as xr 
-import metpy.calc as mpcalc
 from metpy.units import units
 from glob import glob
 import numpy as np
@@ -34,48 +32,47 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
-    dset = dset.metpy.parse_cf()
+    dset, time, cum_hour  = read_dataset(variables=['H_SNOW', 'SNOWLMT'])
 
-    hsnow_acc = dset['sde'].load()
-    hsnow = hsnow_acc*0.
-    for i, _ in enumerate(hsnow_acc[1:]):
-        hsnow[i] = (hsnow_acc[i] - hsnow_acc[0])*100.
+    dset['sde'].metpy.convert_units('cm')
+    hsnow_acc = dset['sde']
+    hsnow = (hsnow_acc - hsnow_acc[0, :, :]).load()
     hsnow = hsnow.where((hsnow>0.5) | (hsnow<-0.5))
 
-    snowlmt = dset['SNOWLMT'].metpy.unit_array.to('m')
+    del hsnow_acc
 
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
+    dset['SNOWLMT'].metpy.convert_units('m')
+    snowlmt = dset['SNOWLMT'].load()
 
-    time = pd.to_datetime(dset.time.values)
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
-
-    levels_hsnow = (-40, -30, -20, -10, -5, -2.5, -2, -1, -0.5, 0, 0.5, 1, 2, 2.5, 5, 10, 20, 30, 40)
+    levels_hsnow = (-40, -30, -20, -10, -5, -2.5, -2, -1, -0.5,
+                    0, 0.5, 1, 2, 2.5, 5, 10, 20, 30, 40)
     levels_snowlmt = np.arange(0., 3000., 500.)
 
     cmap, norm = from_levels_and_colors(levels_hsnow, sns.color_palette("PuOr", n_colors=len(levels_hsnow)+1),
                                                     extend='both')
     
     for projection in projections:# This works regardless if projections is either single value or array
-        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
+
         ax  = plt.gca()        
-        m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
-        img=m.arcgisimage(service='World_Shaded_Relief', xpixels = 1000, verbose=False)
-        img.set_alpha(0.8)
+
+        hsnow, snowlmt = subset_arrays([hsnow, snowlmt], projection)
+
+        lon, lat = get_coordinates(snowlmt)
+        lon2d, lat2d = np.meshgrid(lon, lat)
+
+        m, x, y = get_projection(lon2d, lat2d, projection, labels=True)
+
+        m.fillcontinents(color='lightgray',lake_color='whitesmoke', zorder=0)
 
         # All the arguments that need to be passed to the plotting function
-        args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap, norm=norm,
+        args=dict(x=x, y=y, ax=ax, cmap=cmap, norm=norm,
                  hsnow=hsnow, snowlmt=snowlmt, levels_hsnow=levels_hsnow,
                  levels_snowlmt=levels_snowlmt, time=time, projection=projection, cum_hour=cum_hour)
         
         print_message('Pre-processing finished, launching plotting scripts')
         if debug:
-            plot_files(time[1:2], **args)
+            plot_files(time[-2:-1], **args)
         else:
             # Parallelize the plotting by dividing into chunks and processes 
             dates = chunks(time, chunks_size)

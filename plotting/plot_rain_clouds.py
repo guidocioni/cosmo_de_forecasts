@@ -32,42 +32,30 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
-    dset = dset.metpy.parse_cf()
+    dset, time, cum_hour  = read_dataset(variables=['RAIN_GSP','SNOW_GSP', 'PMSL','CLCL','CLCH'])
 
-    time = pd.to_datetime(dset.time.values)
-    increments = (time[1:] - time[:-1]) / pd.Timedelta('1 hour') 
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
+    increments = (time[1:] - time[:-1]) / pd.Timedelta('1 hour')
 
     # Compute rain and snow 
-    # Note that we have to load since they are Dask arrays
     rain_acc = dset['RAIN_GSP']
     snow_acc = dset['SNOW_GSP']
-    rain = rain_acc.diff(dim='time', n=1)
-    snow = snow_acc.diff(dim='time', n=1)
-    # Unfortunately we have to convert to Numpy array 
-    rain = rain.values / increments.values[:, np.newaxis, np.newaxis]
-    snow = snow.values / increments.values[:, np.newaxis, np.newaxis]
-    rain = np.insert(arr=rain, obj=0, axis=0, values=np.zeros_like(rain[0]))
-    snow = np.insert(arr=snow, obj=0, axis=0, values=np.zeros_like(snow[0]))
+    rain = rain_acc.differentiate(coord="time", datetime_unit="h").load()
+    snow = snow_acc.differentiate(coord="time", datetime_unit="h").load()
 
-    mslp = dset['prmsl'].metpy.unit_array.to('hPa')
-    # This should be fixed to use the levels that do not contain only NaNs
-    clouds_low = dset['CLCL'].load().metpy.sel(vertical=400. * units.hPa)
-    clouds_high = dset['CLCH'].load().metpy.sel(vertical=200. * units.hPa)
+    del rain_acc
+    del snow_acc
 
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
+    mslp = dset['prmsl'].load()
+    mslp.metpy.convert_units('hPa')
+    clouds_low = dset['CLCL'].load()
+    clouds_high = dset['CLCH'].load()
 
     levels_rain   = (0.1, 0.2, 0.4, 0.6, 0.8, 1., 1.5, 2., 2.5, 3.0, 4.,
                      5, 7.5, 10., 15., 20., 30., 40., 60., 80., 100., 120.)
     levels_snow   = (0.1, 0.2, 0.4, 0.6, 0.8, 1., 1.5, 2., 2.5, 3.0, 4.,
                      5, 7.5, 10., 15.)
-    levels_clouds = np.arange(30, 100, 5)
-    levels_mslp = np.arange(np.nanmin(mslp).astype("int"), np.nanmax(mslp).astype("int"), 5.)
+    levels_clouds = np.arange(30, 100, 1)
+    levels_mslp   = np.arange(mslp.min().astype("int"), mslp.max().astype("int"), 4.)
 
     cmap_snow, norm_snow = get_colormap_norm("snow", levels_snow)
     cmap_rain, norm_rain = get_colormap_norm("rain_new", levels_rain)
@@ -75,21 +63,32 @@ def main():
     cmap_clouds_high = truncate_colormap(plt.get_cmap('Oranges'), 0., 0.5)
 
     for projection in projections:# This works regardless if projections is either single value or array
-        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
+
         ax  = plt.gca()
+
+        rain, snow, mslp, clouds_low, clouds_high = subset_arrays([rain, snow, mslp,
+                                                            clouds_low, clouds_high],
+                                                            projection)
+
+        lon, lat = get_coordinates(rain)
+        lon2d, lat2d = np.meshgrid(lon, lat)
+
         m, x, y =get_projection(lon2d, lat2d, projection)
 
-        #m.shadedrelief(scale=0.4, alpha=0.8)
-
-        # All the arguments that need to be passed to the plotting function
-        args=dict(m=m, x=x, y=y, ax=ax,
-                 rain=rain, snow=snow, mslp=mslp, clouds_low=clouds_low, clouds_high=clouds_high,
+        #m.shadedrelief(scale=1., alpha=0.8)
+        m.drawmapboundary(fill_color='whitesmoke')
+        m.fillcontinents(color='lightgray',lake_color='whitesmoke', zorder=1)
+        
+    # All the arguments that need to be passed to the plotting function
+        args=dict(x=x, y=y, ax=ax,
+                 rain=rain.values, snow=snow.values, mslp=mslp.values, clouds_low=clouds_low.values, clouds_high=clouds_high.values,
                  levels_mslp=levels_mslp, levels_rain=levels_rain, levels_snow=levels_snow,
                  levels_clouds=levels_clouds, time=time, projection=projection, cum_hour=cum_hour,
-                 cmap_rain=cmap_rain, cmap_snow=cmap_snow, cmap_clouds=cmap_clouds,
+                 cmap_rain=cmap_rain, cmap_snow=cmap_snow, cmap_clouds=cmap_clouds, 
                  cmap_clouds_high=cmap_clouds_high, norm_snow=norm_snow, norm_rain=norm_rain)
-        
+
+
         print_message('Pre-processing finished, launching plotting scripts')
         if debug:
             plot_files(time[1:2], **args)

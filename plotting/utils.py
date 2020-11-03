@@ -240,7 +240,7 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
     m = Basemap(**proj_options)
     if projection=="de":
         if regions:
-            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm_shp/DEU_adm1',
+            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -249,7 +249,7 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
                 labels=[True, False, False, True], fontsize=7)
     elif projection=="it":
         if regions:
-            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/ITA_adm_shp/ITA_adm1',
+            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/ITA_adm/ITA_adm1',
                             'ITA_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -258,7 +258,7 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
                 labels=[True, False, False, True], fontsize=7)
     elif projection=="nord":
         if regions:
-            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm_shp/DEU_adm1',
+            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',

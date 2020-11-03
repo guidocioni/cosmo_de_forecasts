@@ -32,21 +32,13 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
-    dset = dset.metpy.parse_cf()
+    dset, time, cum_hour = read_dataset(variables=['T', 'PMSL'])
 
     # Select 850 hPa level using metpy
-    temp_850 = dset['t'].load().metpy.sel(vertical=850 * units.hPa).metpy.unit_array.to('degC')
-    mslp = dset['prmsl'].load().metpy.unit_array.to('hPa') 
-
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    time = pd.to_datetime(dset.time.values)
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
+    temp_850 = dset['t'].metpy.sel(vertical=850 * units.hPa).load()
+    temp_850.metpy.convert_units('degC')
+    mslp = dset['prmsl'].load()
+    mslp.metpy.convert_units('hPa')
 
     levels_temp = np.arange(-30., 30., 2.)
     levels_mslp = np.arange(np.nanmin(mslp).astype("int"), np.nanmax(mslp).astype("int"), 7.)
@@ -56,8 +48,15 @@ def main():
     for projection in projections:# This works regardless if projections is either single value or array
         print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
-        ax  = plt.gca()        
-        m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
+
+        ax  = plt.gca()
+
+        temp_850, mslp =  subset_arrays([temp_850, mslp], projection)
+    
+        lon, lat = get_coordinates(temp_850)
+        lon2d, lat2d = np.meshgrid(lon, lat)
+
+        m, x, y = get_projection(lon2d, lat2d, projection, labels=True)
 
         # All the arguments that need to be passed to the plotting function
         args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap,

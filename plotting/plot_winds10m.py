@@ -4,8 +4,6 @@ if not debug:
     matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
-import xarray as xr 
-import metpy.calc as mpcalc
 from metpy.units import units
 from glob import glob
 import numpy as np
@@ -32,43 +30,39 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H'))
-    dset = dset.metpy.parse_cf()
+    dset, time, cum_hour = read_dataset(variables=['VMAX_10M','PMSL','U_10M','V_10M'])
 
-    # Select 850 hPa level using metpy
-    winds_10m = dset['VMAX_10M'].load().metpy.sel(height=10 * units.m)*3.6
-    mslp = dset['prmsl'].load().metpy.unit_array.to('hPa')
-    u = dset['10u'].load().metpy.sel(height=10 * units.m)
-    v = dset['10v'].load().metpy.sel(height=10 * units.m)
-
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    time = pd.to_datetime(dset.time.values)
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
+    winds_10m = dset['VMAX_10M'].load()
+    winds_10m.metpy.convert_units('kph')
+    mslp = dset['prmsl'].load()
+    mslp.metpy.convert_units('hPa')
+    u = dset['10u'].load()
+    v = dset['10v'].load()
 
     levels_winds_10m = np.arange(20., 150., 5.)
-    levels_mslp = np.arange(np.nanmin(mslp).astype("int"), np.nanmax(mslp).astype("int"), 7.)
+    levels_mslp = np.arange(mslp.min().astype("int"), mslp.max().astype("int"), 4.)
 
     cmap = get_colormap("winds")
 
     for projection in projections:# This works regardless if projections is either single value or array
-        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
+        
         ax  = plt.gca()
-        m, x, y =get_projection(lon2d, lat2d, projection)
-        #m.shadedrelief(scale=0.4, alpha=0.7)
-        m.drawmapboundary(fill_color='whitesmoke')
+
+        u, v, mslp, winds_10m = subset_arrays([u, v, mslp, winds_10m], projection)
+
+        lon, lat = get_coordinates(u)
+        lon2d, lat2d = np.meshgrid(lon, lat)
+        
+        m, x, y = get_projection(lon2d, lat2d, projection)
+        
         m.fillcontinents(color='lightgray',lake_color='whitesmoke', zorder=0)
 
         # All the arguments that need to be passed to the plotting function
-        args=dict(m=m, x=x, y=y, ax=ax, u=u, v=v,
-                 winds_10m=winds_10m, mslp=mslp, levels_winds_10m=levels_winds_10m,
+        args=dict(x=x, y=y, ax=ax,
+                 winds_10m = winds_10m.values, mslp=mslp.values, levels_winds_10m=levels_winds_10m,
                  levels_mslp=levels_mslp, time=time, projection=projection, cum_hour=cum_hour,
-                 cmap=cmap)
+                 cmap=cmap, u=u.values, v=v.values)
         
         print_message('Pre-processing finished, launching plotting scripts')
         if debug:

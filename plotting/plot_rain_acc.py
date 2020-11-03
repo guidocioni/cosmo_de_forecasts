@@ -32,45 +32,41 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.sel(time=pd.date_range(dset.time[0].values, dset.time[-1].values, freq='H')).load()
-    dset = dset.metpy.parse_cf()
+    dset, time, cum_hour  = read_dataset(variables=['TOT_PREC','PMSL'])
 
-    # Select 850 hPa level using metpy
     precip_acc = dset['tp'].load()
-    mslp = dset['prmsl'].load().metpy.unit_array.to('hPa')
+    mslp = dset['prmsl'].load()
+    mslp.metpy.convert_units('hPa')
 
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
+    levels_precip = (5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 35, 40,
+                    45, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 400, 500)
+    levels_mslp = np.arange(mslp.min().astype("int"), mslp.max().astype("int"), 4.)
 
-    time = pd.to_datetime(dset.time.values)
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('1 hour')).astype("int")
-
-    levels_precip = (5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 150, 200, 250)
-    levels_mslp = np.arange(mslp.min().astype("int"), mslp.max().astype("int"), 5.)
-
-    cmap = truncate_colormap(plt.get_cmap('gist_stern_r'), 0., 0.9)
-    cmap, norm = get_colormap_norm("rain_acc", levels_precip)
+    cmap, norm = get_colormap_norm("rain_new", levels_precip)
 
     for projection in projections:# This works regardless if projections is either single value or array
-        print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
+
         ax  = plt.gca()
-        m, x, y =get_projection(lon2d, lat2d, projection)
-        img=m.arcgisimage(service='World_Shaded_Relief', xpixels = 1000, verbose=False)
-        img.set_alpha(0.8)
+
+        precip_acc, mslp = subset_arrays([precip_acc, mslp], projection)
+
+        lon, lat = get_coordinates(precip_acc)
+        lon2d, lat2d = np.meshgrid(lon, lat)
+
+        m, x, y = get_projection(lon2d, lat2d, projection)
+
+        m.fillcontinents(color='lightgray',lake_color='whitesmoke', zorder=0)
 
         # All the arguments that need to be passed to the plotting function
-        args=dict(m=m, x=x, y=y, ax=ax,
+        args=dict(x=x, y=y, ax=ax,
                  precip_acc=precip_acc, mslp=mslp, levels_precip=levels_precip,
                  levels_mslp=levels_mslp, time=time, projection=projection, cum_hour=cum_hour,
                  cmap=cmap, norm=norm)
         
         print_message('Pre-processing finished, launching plotting scripts')
         if debug:
-            plot_files(time[1:2], **args)
+            plot_files(time[-2:-1], **args)
         else:
             # Parallelize the plotting by dividing into chunks and processes 
             dates = chunks(time, chunks_size)

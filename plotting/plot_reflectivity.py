@@ -4,15 +4,12 @@ if not debug:
     matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
-import xarray as xr 
-import metpy.calc as mpcalc
 from metpy.units import units
 from glob import glob
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool
 from functools import partial
-import os 
 from utils import *
 import sys
 
@@ -32,20 +29,10 @@ else:
 def main():
     """In the main function we basically read the files and prepare the variables to be plotted.
     This is not included in utils.py as it can change from case to case."""
-    files = glob(input_file)
-    dset = xr.open_mfdataset(files)
-    # Only take hourly data 
-    dset = dset.metpy.parse_cf()
+    dset, time, cum_hour  = read_dataset(variables=['DBZ_CMAX'])
 
     # Select 850 hPa level using metpy
     dbz = dset['DBZ_CMAX'].load()
-
-    lon, lat = get_coordinates(dset)
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    time = pd.to_datetime(dset.time.values)
-
-    cum_hour=np.array((time-time[0]) / pd.Timedelta('15 minute')).astype("int")
 
     levels_dbz = np.arange(20, 70, 2.5)
 
@@ -54,14 +41,20 @@ def main():
     for projection in projections:# This works regardless if projections is either single value or array
         print_message('Projection = %s' % projection)
         fig = plt.figure(figsize=(figsize_x, figsize_y))
+        
         ax  = plt.gca()        
-        m, x, y =get_projection(lon2d, lat2d, projection, labels=True)
-        img=m.arcgisimage(service='World_Shaded_Relief', xpixels = 1000, verbose=False)
-        img.set_alpha(0.8)
 
+        dbz = subset_arrays([dbz], projection)[0]
+
+        lon, lat = get_coordinates(dbz)
+        lon2d, lat2d = np.meshgrid(lon, lat)
+
+        m, x, y = get_projection(lon2d, lat2d, projection, labels=True)
         # All the arguments that need to be passed to the plotting function
+        m.fillcontinents(color='lightgray', lake_color='whitesmoke', zorder=0)
+        
         args=dict(m=m, x=x, y=y, ax=ax, cmap=cmap,
-                 dbz=dbz, levels_dbz=levels_dbz,time=time,
+                 dbz=dbz, levels_dbz=levels_dbz, time=time,
                  projection=projection, cum_hour=cum_hour)
         
         print_message('Pre-processing finished, launching plotting scripts')
