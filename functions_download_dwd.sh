@@ -3,38 +3,47 @@
 listurls() {
 	filename="$1"
 	url="$2"
-  	wget --spider -r -nH -np -nv -nd --reject "index.html" --cut-dirs=3 \
-		-A $filename.bz2 $url 2>&1\
-		| grep -Eo '(http|https)://(.*).bz2'
+	wget -qO- $url | grep -Eoi '<a [^>]+>' | \
+	grep -Eo 'href="[^\"]+"' | \
+	grep -Eo $filename | \
+	xargs -I {} echo "$url"{}
 }
 export -f listurls
 #
 get_and_extract_one() {
   url="$1"
   file=`basename $url | sed 's/\.bz2//g'`
-  wget -q -O - "$url" | bzip2 -dc > "$file"
+  if [ ! -f "$file" ]; then
+  	wget -t 2 -q -O - "$url" | bzip2 -dc > "$file"
+  fi
 }
 export -f get_and_extract_one
 ##############################################
 download_merge_2d_variable_cosmo_d2()
 {
 	filename="cosmo-d2_germany_regular-lat-lon_single-level_${year}${month}${day}${run}_*_${1}.grib2"
+	filename_grep="cosmo-d2_germany_regular-lat-lon_single-level_${year}${month}${day}${run}_(.*)_${1}.grib2.bz2"
 	url="https://opendata.dwd.de/weather/nwp/cosmo-d2/grib/${run}/${1,,}/"
-	listurls $filename $url | parallel get_and_extract_one {}
-	cdo -f nc copy -mergetime ${filename} ${1}_${year}${month}${day}${run}_de.nc
-	rm ${filename}
+	if [ ! -f "${1}_${year}${month}${day}${run}_de.nc" ]; then
+		listurls $filename_grep $url | parallel -j 10 get_and_extract_one {}
+		cdo -f nc copy -mergetime ${filename} ${1}_${year}${month}${day}${run}_de.nc
+		rm ${filename}
+	fi
 }
 export -f download_merge_2d_variable_cosmo_d2
 ##############################################
 download_merge_3d_variable_cosmo_d2()
 {
 	filename="cosmo-d2_germany_regular-lat-lon_pressure-level_${year}${month}${day}${run}_*_${1}.grib2"
+	filename_grep="cosmo-d2_germany_regular-lat-lon_pressure-level_${year}${month}${day}${run}_(.*)_${1}.grib2.bz2"
 	url="https://opendata.dwd.de/weather/nwp/cosmo-d2/grib/${run}/${1,,}/"
-	listurls $filename $url | parallel get_and_extract_one {}
-	cdo merge ${filename} ${1}_${year}${month}${day}${run}_de.grib2
-	rm ${filename}
-	cdo -f nc copy ${1}_${year}${month}${day}${run}_de.grib2 ${1}_${year}${month}${day}${run}_de.nc
-	rm ${1}_${year}${month}${day}${run}_de.grib2
+	if [ ! -f "${1}_${year}${month}${day}${run}_de.nc" ]; then
+		listurls $filename_grep $url | parallel -j 10 get_and_extract_one {}
+		cdo merge ${filename} ${1}_${year}${month}${day}${run}_de.grib2
+		rm ${filename}
+		cdo -f nc copy ${1}_${year}${month}${day}${run}_de.grib2 ${1}_${year}${month}${day}${run}_de.nc
+		rm ${1}_${year}${month}${day}${run}_de.grib2
+	fi
 }
 export -f download_merge_3d_variable_cosmo_d2
 ################################################

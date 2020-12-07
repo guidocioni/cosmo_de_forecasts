@@ -11,8 +11,11 @@ import sys
 from glob import glob
 import xarray as xr
 from matplotlib.colors import BoundaryNorm
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 import metpy
 import re
+from matplotlib.image import imread as read_png
+
 
 import warnings
 warnings.filterwarnings(
@@ -20,28 +23,37 @@ warnings.filterwarnings(
     message='The unit of the quantity is stripped.'
 )
 
-folder = os.environ['MODEL_DATA_FOLDER']
-folder_images = os.environ['MODEL_DATA_FOLDER']
+if 'MODEL_DATA_FOLDER' in os.environ:
+    folder = os.environ['MODEL_DATA_FOLDER']
+else:
+    folder = '/tmp/cosmo-d2/'
+folder_images = folder
 chunks_size = 10
-processes = int(os.environ['N_CONCUR_PROCESSES'])
+processes = 9
 figsize_x = 10 
 figsize_y = 8
-invariant_file = folder+'HSURF_*.nc' 
+invariant_file = folder+'HSURF_*.nc'
+
+if "HOME_FOLDER" in os.environ:
+    home_folder = os.environ['HOME_FOLDER']
+else:
+    home_folder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 # Options for savefig
 options_savefig={
     'dpi':100,
-    'bbox_inches':'tight'
+    'bbox_inches':'tight',
+    'transparent': True
 }
 
 # Dictionary to map the output folder based on the projection employed
 subfolder_images={
     'de' : folder_images,
     'it' : folder_images+'it',
-    'nord' : folder_images+'nord'    
+    'nord' : folder_images+'nord'
 }
 
-folder_glyph = os.environ['HOME_FOLDER'] + '/plotting/yrno_png/'
+folder_glyph = home_folder + '/plotting/yrno_png/'
 WMO_GLYPH_LOOKUP_PNG={
         '0': '01',
         '1': '02',
@@ -125,11 +137,15 @@ proj_defs = {
 
 
 def get_weather_icons(ww, time):
-    from matplotlib.image import imread as read_png
     """
     Get the path to a png given the weather representation 
     """
-    weather = [WMO_GLYPH_LOOKUP_PNG[w.astype(int).astype(str)] for w in ww.values]
+    weather = []
+    for w in ww.values:
+        if w.astype(int).astype(str) in WMO_GLYPH_LOOKUP_PNG:
+            weather.append(WMO_GLYPH_LOOKUP_PNG[w.astype(int).astype(str)])
+        else:
+            weather.append('empty')
     weather_icons=[]
     for date, weath in zip(time, weather):
         if date.hour >= 6 and date.hour <= 18:
@@ -149,35 +165,42 @@ def get_weather_icons(ww, time):
     return(weather_icons)
 
 
-def subset_arrays(arrs, proj):
-    """Given an input projection created with basemap or cartopy subset the input arrays 
-    on the boundaries"""
-    proj_options = proj_defs[proj]
-    out = []
-    for arr in arrs:
-        out.append(arr.metpy.sel(lat=slice(proj_options['llcrnrlat'], proj_options['urcrnrlat']),
-                            lon=slice(proj_options['llcrnrlon'], proj_options['urcrnrlon'])))
-
-    return out
-
-
-def read_dataset(variables = ['T_2M', 'TD_2M']):
+def read_dataset(variables = ['T_2M', 'TD_2M'], level=None, projection=None,
+                 engine='scipy'):
     """Wrapper to initialize the dataset"""
     # Create the regex for the files with the needed variables
     variables_search = '('+'|'.join(variables)+')'
     # Get a list of all the files in the folder
     # In the future we can use Run/Date to have a more selective glob pattern
     files = glob(folder+'*.nc')
+    run = pd.to_datetime(re.findall(r'(?:\d{10})', files[0])[0],
+               format='%Y%m%d%H')
     # find only the files with the variables that we need 
     needed_files = [f for f in files if re.search(r'/%s(?:_\d{10})' % variables_search, f)]
-    dset = xr.open_mfdataset(needed_files, preprocess=preprocess)
+    dset = xr.open_mfdataset(needed_files, preprocess=preprocess, engine=engine)
     # NOTE!! Even though we use open_mfdataset, which creates a Dask array, we then 
     # load the dataset into memory since otherwise the object cannot be pickled by 
     # multiprocessing
     dset = dset.metpy.parse_cf()
-    time, cum_hour = read_time(dset)
+    if level:
+        dset = dset.sel(plev=level, method='nearest')
+    if projection:
+        proj_options = proj_defs[projection]
+        dset = dset.sel(lat=slice(proj_options['llcrnrlat'],
+                                  proj_options['urcrnrlat']),
+                        lon=slice(proj_options['llcrnrlon'],
+                                  proj_options['urcrnrlon']))
+    dset['run'] = run
 
-    return dset, time, cum_hour
+    return dset
+
+
+def get_time_run_cum(dset):
+    time = dset['time'].to_pandas()
+    run = dset['run'].to_pandas()
+    cum_hour = np.array((time - run) / pd.Timedelta('1 hour')).astype(int)
+
+    return time, run, cum_hour
 
 
 def preprocess(ds):
@@ -189,16 +212,6 @@ def preprocess(ds):
         ds = ds.drop('plev_bnds')
 
     return ds.squeeze(drop=True)
-
-
-def read_time(dset):
-    """Read time properly (as datetime object) from dataset
-    and compute forecast lead time as cumulative hour"""
-    time = pd.to_datetime(dset.time.values)
-    cum_hour = np.array((time - time[0]) /
-                        pd.Timedelta('1 hour')).astype("int")
-
-    return time, cum_hour
 
 
 def print_message(message):
@@ -222,7 +235,7 @@ def get_coordinates(ds):
     if longitude.max() > 180:
         longitude = (((longitude.lon + 180) % 360) - 180)
 
-    return(longitude.values, latitude.values)
+    return np.meshgrid(longitude.values, latitude.values)
 
 
 def get_city_coordinates(city):
@@ -234,13 +247,14 @@ def get_city_coordinates(city):
     return(loc.longitude, loc.latitude)
 
 
-def get_projection(lon, lat, projection="de", countries=True, regions=True, labels=False):
+def get_projection(dset, projection="de", countries=True, regions=True, labels=False):
+    lon2d, lat2d = get_coordinates(dset)
     from mpl_toolkits.basemap import Basemap
     proj_options = proj_defs[projection]
     m = Basemap(**proj_options)
     if projection=="de":
         if regions:
-            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm/DEU_adm1',
+            m.readshapefile(home_folder + '/plotting/shapefiles/DEU_adm/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -249,7 +263,7 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
                 labels=[True, False, False, True], fontsize=7)
     elif projection=="it":
         if regions:
-            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/ITA_adm/ITA_adm1',
+            m.readshapefile(home_folder + '/plotting/shapefiles/ITA_adm/ITA_adm1',
                             'ITA_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -258,7 +272,7 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
                 labels=[True, False, False, True], fontsize=7)
     elif projection=="nord":
         if regions:
-            m.readshapefile(os.environ['HOME_FOLDER'] + '/plotting/shapefiles/DEU_adm/DEU_adm1',
+            m.readshapefile(home_folder + '/plotting/shapefiles/DEU_adm/DEU_adm1',
                             'DEU_adm1',linewidth=0.2,color='black',zorder=5)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
@@ -270,30 +284,40 @@ def get_projection(lon, lat, projection="de", countries=True, regions=True, labe
     if countries:
         m.drawcountries(linewidth=0.5, linestyle='solid', color='black', zorder=5)
 
-    x, y = m(lon, lat)
+    x, y = m(lon2d, lat2d)
 
     return(m, x, y)
+
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
+
+def chunks_dataset(ds, n):
+    """Same as 'chunks' but for the time dimension in
+    a dataset"""
+    for i in range(0, len(ds.time), n):
+        yield ds.isel(time=slice(i, i + n))
+
+
 # Annotation run, models 
 def annotation_run(ax, time, loc='upper right',fontsize=8):
     """Put annotation of the run obtaining it from the
     time array passed to the function."""
-    at = AnchoredText('Run %s'% time[0].strftime('%Y%m%d %H UTC'), 
+    time = pd.to_datetime(time)
+    at = AnchoredText('Run %s'% time.strftime('%Y%m%d %H UTC'), 
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     at.zorder = 10
     ax.add_artist(at)
-
     return(at)
 
 
-def annotation_forecast(ax, time, loc='upper left',fontsize=8, local=True):
+def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
     """Put annotation of the forecast time."""
+    time = pd.to_datetime(time)
     if local: # convert to local time
         time = convert_timezone(time)
         at = AnchoredText('Valid %s' % time.strftime('%A %d %b %Y at %H (Berlin)'), 
@@ -304,8 +328,18 @@ def annotation_forecast(ax, time, loc='upper left',fontsize=8, local=True):
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     at.zorder = 10
     ax.add_artist(at)
+    return(at)
 
-    return(at)    
+
+def add_logo_on_map(ax, logo=home_folder+'/plotting/meteoindiretta_logo.png', zoom=0.15, pos=(0.92, 0.1)):
+    '''Add a logo on the map given a pnd image, a zoom and a position
+    relative to the axis ax.'''
+    img_logo = OffsetImage(read_png(logo), zoom=zoom)
+    logo_ann = AnnotationBbox(
+        img_logo, pos, xycoords='axes fraction', frameon=False)
+    logo_ann.set_zorder(10)
+    at = ax.add_artist(logo_ann)
+    return at 
 
 
 def convert_timezone(dt_from, from_tz='utc', to_tz='Europe/Berlin'):
@@ -353,11 +387,11 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
 
 def get_colormap(cmap_type):
     """Create a custom colormap."""
-    colors_tuple = pd.read_csv(os.environ['HOME_FOLDER'] + '/plotting/cmap_%s.rgba' % cmap_type).values 
+    colors_tuple = pd.read_csv(home_folder + '/plotting/cmap_%s.rgba' % cmap_type).values 
 
     cmap = colors.LinearSegmentedColormap.from_list(cmap_type, colors_tuple, colors_tuple.shape[0])
-
     return(cmap)
+
 
 def get_colormap_norm(cmap_type, levels):
     """Create a custom colormap."""
@@ -375,15 +409,16 @@ def get_colormap_norm(cmap_type, levels):
         cmap, norm = from_levels_and_colors(levels, sns.color_palette('gist_stern_r', n_colors=len(levels)),
                          extend='max')
     elif cmap_type == "rain_new":
-        colors_tuple = pd.read_csv(os.environ['HOME_FOLDER'] + '/plotting/cmap_prec.rgba').values    
+        colors_tuple = pd.read_csv(home_folder + '/plotting/cmap_prec.rgba').values    
         cmap, norm = from_levels_and_colors(levels, sns.color_palette(colors_tuple, n_colors=len(levels)),
                          extend='max')
     elif cmap_type == "winds":
-        colors_tuple = pd.read_csv(os.environ['HOME_FOLDER'] + '/plotting/cmap_winds.rgba').values    
+        colors_tuple = pd.read_csv(home_folder + '/plotting/cmap_winds.rgba').values    
         cmap, norm = from_levels_and_colors(levels, sns.color_palette(colors_tuple, n_colors=len(levels)),
                          extend='max')
-    
+
     return(cmap, norm)
+
 
 def remove_collections(elements):
     """Remove the collections of an artist to clear the plot without
@@ -451,8 +486,8 @@ def plot_maxmin_points(ax, lon, lat, data, extrema, nsize, symbol, color='k',
     
     return(texts)
 
-def add_vals_on_map(ax, bmap, var, levels, density=50,
-                     cmap='rainbow', shift_x=0., shift_y=0., fontsize=9, lcolors=True):
+def add_vals_on_map(ax, projection, var, levels, density=50,
+                     cmap='rainbow', shift_x=0., shift_y=0., fontsize=8, lcolors=True):
     '''Given an input projection, a variable containing the values and a plot put
     the values on a map exlcuing NaNs and taking care of not going
     outside of the map boundaries, which can happen.
@@ -461,8 +496,11 @@ def add_vals_on_map(ax, bmap, var, levels, density=50,
 
     norm = colors.Normalize(vmin=levels.min(), vmax=levels.max())
     m = mplcm.ScalarMappable(norm=norm, cmap=cmap)
-    
-    lon_min, lon_max, lat_min, lat_max = bmap.llcrnrlon, bmap.urcrnrlon, bmap.llcrnrlat, bmap.urcrnrlat
+
+    proj_options = proj_defs[projection]
+    lon_min, lon_max, lat_min, lat_max = proj_options['llcrnrlon'], proj_options['urcrnrlon'],\
+                                         proj_options['llcrnrlat'], proj_options['urcrnrlat']
+
 
     # Remove values outside of the extents
     var = var.sel(lat=slice(lat_min+0.15, lat_max-0.15), lon=slice(lon_min+0.15, lon_max-0.15))[::density, ::density]

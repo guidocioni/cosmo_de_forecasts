@@ -28,11 +28,11 @@ else:
 
 
 def main():
-    dset, time, _ = read_dataset(variables=['T_2M','TD_2M','T','VMAX_10M',
+    dset = read_dataset(variables=['T_2M','TD_2M','T','VMAX_10M',
                                                     'PMSL','HSURF','WW','RAIN_GSP','RAIN_CON',
                                                     'SNOW_GSP','SNOW_CON','RELHUM','U','V','CLC'])
 
-    args = dict(dset=dset, time=time)
+    args = dict(dset=dset)
     print_message('Pre-processing finished, launching plotting scripts')
     cities_chunks = chunks(cities, 5)
     plot_param = partial(plot, **args)
@@ -46,7 +46,8 @@ def plot(cities, **args):
         lon, lat = get_city_coordinates(city)
         dset_city = args['dset'].sel(lon=lon, lat=lat, method='nearest').load()
         dset_hourly = dset_city.dropna(dim='time')
-        time_hourly = pd.to_datetime(dset_hourly.time.values)
+        time_hourly, run, cum_hour = get_time_run_cum(dset_hourly)
+        time_prec, _, _ = get_time_run_cum(dset_city)
         t = dset_hourly['t']
         t.metpy.convert_units('degC')
         rh = dset_hourly['r']
@@ -89,7 +90,7 @@ def plot(cities, **args):
                       alpha=0.3, length=5.5)
         ax0.xaxis.set_major_locator(mdates.HourLocator(interval=6))
         ax0.grid(True, alpha=0.5)
-        an_fc = annotation_run(ax0, time_hourly)
+        an_fc = annotation_run(ax0, run)
         an_var = annotation(ax0, 'Relative humidity, $T$ and winds @(%3.1fN, %3.1fE, %d m)' % (dset_hourly.lat, dset_hourly.lon, dset_hourly.HSURF),
                             loc='upper left')
         an_city = annotation(ax0, city, loc='upper center')
@@ -132,18 +133,18 @@ def plot(cities, **args):
         plt.legend(handles, labels, fontsize=7)
 
         ax3 = plt.subplot(gs[3])
-        ax3.set_xlim(args['time'][0], args['time'][-1])
-        ts = ax3.plot(args['time'], rain_acc, label='Rain (acc.)',
+        ax3.set_xlim(time_prec[0], time_prec[-1])
+        ts = ax3.plot(time_prec, rain_acc, label='Rain (acc.)',
                       color='dodgerblue', linewidth=0.1)
-        ts1 = ax3.plot(args['time'], snow_acc, label='Snow (acc.)',
+        ts1 = ax3.plot(time_prec, snow_acc, label='Snow (acc.)',
                        color='orchid', linewidth=0.1)
-        ax3.fill_between(args['time'], rain_acc, y2=0, facecolor='dodgerblue', alpha=0.2)
-        ax3.fill_between(args['time'], snow_acc, y2=0, facecolor='orchid', alpha=0.2)
+        ax3.fill_between(time_prec, rain_acc, y2=0, facecolor='dodgerblue', alpha=0.2)
+        ax3.fill_between(time_prec, snow_acc, y2=0, facecolor='orchid', alpha=0.2)
         ax3.set_ylim(bottom=0)
         ax3.set_ylabel('Accum. [mm]')
         ax33 = ax3.twinx()
-        ts2 = ax33.plot(args['time'], rain, label='Rain', color='dodgerblue')
-        ts3 = ax33.plot(args['time'], snow, label='Snow', color='orchid')
+        ts2 = ax33.plot(time_prec, rain, label='Rain', color='dodgerblue')
+        ts3 = ax33.plot(time_prec, snow, label='Snow', color='orchid')
         ax33.set_ylim(bottom=0)
         ax33.set_ylabel('Inst. [mm h$^{-1}$]')
         ax33.legend(fontsize=7)
