@@ -15,13 +15,16 @@ from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 import metpy
 import re
 from matplotlib.image import imread as read_png
-
+import requests
+import json
 
 import warnings
 warnings.filterwarnings(
     action='ignore',
     message='The unit of the quantity is stripped.'
 )
+
+apiKey = os.environ['MAPBOX_KEY']
 
 if 'MODEL_DATA_FOLDER' in os.environ:
     folder = os.environ['MODEL_DATA_FOLDER']
@@ -239,12 +242,17 @@ def get_coordinates(ds):
 
 
 def get_city_coordinates(city):
-    """Get the lat/lon coordinates of a city given its name using geopy."""
-    from geopy.geocoders import Nominatim
-    geolocator =Nominatim(user_agent='meteogram')
-    loc = geolocator.geocode(city)
+    apiURL_places = "https://api.mapbox.com/geocoding/v5/mapbox.places"
 
-    return(loc.longitude, loc.latitude)
+    url = "%s/%s.json?&access_token=%s&country=DE" % (apiURL_places, city, apiKey)
+
+    response = requests.get(url)
+    json_data = json.loads(response.text)
+
+    # place_name = json_data['features'][0]['place_name']
+    lon, lat = json_data['features'][0]['center']
+
+    return lon, lat
 
 
 def get_projection(dset, projection="de", countries=True, regions=True, labels=False):
@@ -320,10 +328,10 @@ def annotation_forecast(ax, time, loc='upper left', fontsize=8, local=True):
     time = pd.to_datetime(time)
     if local: # convert to local time
         time = convert_timezone(time)
-        at = AnchoredText('Valid %s' % time.strftime('%A %d %b %Y at %H (Berlin)'), 
+        at = AnchoredText('Valid %s' % time.strftime('%A %d %b %Y at %H:%M (Berlin)'), 
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     else:
-        at = AnchoredText('Forecast for %s' % time.strftime('%A %d %b %Y at %H UTC'), 
+        at = AnchoredText('Forecast for %s' % time.strftime('%A %d %b %Y at %H:%M UTC'), 
                        prop=dict(size=fontsize), frameon=True, loc=loc)
     at.patch.set_boxstyle("round,pad=0.,rounding_size=0.1")
     at.zorder = 10
@@ -503,22 +511,21 @@ def add_vals_on_map(ax, projection, var, levels, density=50,
 
 
     # Remove values outside of the extents
-    var = var.sel(lat=slice(lat_min+0.15, lat_max-0.15), lon=slice(lon_min+0.15, lon_max-0.15))[::density, ::density]
-    var = var.dropna(dim='lon')
-    var = var.dropna(dim='lat')
+    var = var.sel(lat=slice(lat_min-0.5, lat_max+0.5), lon=slice(lon_min-0.5, lon_max+0.5))[::density, ::density]
     lons = var.lon
     lats = var.lat
 
     at = []
     for ilat, ilon in np.ndindex(var.shape):
-        if lcolors:
-            at.append(ax.annotate(('%d'%var[ilat, ilon]), (lons[ilon]+shift_x, lats[ilat]+shift_y),
-                             color = m.to_rgba(float(var[ilat, ilon])), weight='bold', fontsize=fontsize,
-                              path_effects=[path_effects.withStroke(linewidth=1, foreground="black")], zorder=5))
-        else:
-            at.append(ax.annotate(('%d'%var[ilat, ilon]), (lons[i]+shift_x, lats[i]+shift_y),
-                             color = 'white', weight='bold', fontsize=fontsize,
-                              path_effects=[path_effects.withStroke(linewidth=1, foreground="black")], zorder=5))
+        if not var[ilat, ilon].isnull():
+            if lcolors:
+                at.append(ax.annotate(('%d'%var[ilat, ilon]), (lons[ilon]+shift_x, lats[ilat]+shift_y),
+                                 color = m.to_rgba(float(var[ilat, ilon])), weight='bold', fontsize=fontsize,
+                                  path_effects=[path_effects.withStroke(linewidth=1, foreground="black")], zorder=5))
+            else:
+                at.append(ax.annotate(('%d'%var[ilat, ilon]), (lons[i]+shift_x, lats[i]+shift_y),
+                                 color = 'white', weight='bold', fontsize=fontsize,
+                                  path_effects=[path_effects.withStroke(linewidth=1, foreground="black")], zorder=5))
 
     return at
 

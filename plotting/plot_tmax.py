@@ -70,14 +70,14 @@ def plot_files(dss, **args):
                                  extend='both',
                                  cmap=args['cmap'],
                                  levels=args['levels_t2m'])
-        
+
         # plot every -th element
         if projection=="nord":
-            density = 12
+            density = 10
         elif projection=="it":
             density = 12
         elif projection=="de":
-            density = 18
+            density = 16
         vals = add_vals_on_map(args['ax'], projection,
                                data['TMAX_2M'], args['levels_t2m'],
                                cmap=args['cmap'],
