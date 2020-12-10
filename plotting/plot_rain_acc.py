@@ -31,6 +31,7 @@ def main():
     This is not included in utils.py as it can change from case to case."""
     dset = read_dataset(variables=['TOT_PREC', 'PMSL'],
                         projection=projection)
+    dset = dset.dropna(dim='time')
     dset['prmsl'].metpy.convert_units('hPa')
 
     levels_precip = (5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 35, 40,

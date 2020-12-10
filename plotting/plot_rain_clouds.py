@@ -34,7 +34,8 @@ def main():
                                     'SNOW_GSP',
                                     'PMSL', 'CLCL', 'CLCH'],
                                     projection=projection)
-
+    # Convert to hourly data
+    dset = dset.dropna(dim='time')
     dset = compute_rate(dset)
     dset['prmsl'].metpy.convert_units('hPa')
 
@@ -71,7 +72,7 @@ def main():
 
     print_message('Pre-processing finished, launching plotting scripts')
     if debug:
-        plot_files(dset.isel(time=slice(0, 2)), **args)
+        plot_files(dset.isel(time=slice(10, 12)), **args)
     else:
         # Parallelize the plotting by dividing into chunks and processes
         dss = chunks_dataset(dset, chunks_size)
@@ -123,8 +124,8 @@ def plot_files(dss, **args):
                 x_cbar_0, y_cbar_0, x_cbar_size, y_cbar_size     = 0.15, 0.2, 0.35, 0.02
                 x_cbar2_0, y_cbar2_0, x_cbar2_size, y_cbar2_size = 0.55, 0.2, 0.35, 0.02  
             elif projection == "de":
-                x_cbar_0, y_cbar_0, x_cbar_size, y_cbar_size     = 0.17, 0.07, 0.32, 0.02
-                x_cbar2_0, y_cbar2_0, x_cbar2_size, y_cbar2_size = 0.55, 0.07, 0.32, 0.02 
+                x_cbar_0, y_cbar_0, x_cbar_size, y_cbar_size     = 0.17, 0.06, 0.32, 0.02
+                x_cbar2_0, y_cbar2_0, x_cbar2_size, y_cbar2_size = 0.55, 0.06, 0.32, 0.02 
             elif projection == "nord":
                 x_cbar_0, y_cbar_0, x_cbar_size, y_cbar_size     = 0.15, 0.09, 0.35, 0.02
                 x_cbar2_0, y_cbar2_0, x_cbar2_size, y_cbar2_size = 0.55, 0.09, 0.35, 0.02 

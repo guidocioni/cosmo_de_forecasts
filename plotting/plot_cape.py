@@ -12,7 +12,7 @@ if not debug:
 import matplotlib.pyplot as plt
 
 # The one employed for the figure name when exported
-variable_name = 'cape'
+variable_name = 'cape_cin'
 
 print_message('Starting script to plot ' + variable_name)
 
@@ -97,7 +97,7 @@ def plot_files(dss, **args):
                                 zoom=0.1, pos=(0.95, 0.08))
 
         if first:
-            plt.colorbar(cs, orientation='horizontal', label='CAPE [J/kg]', pad=0.04, fraction=0.03)
+            plt.colorbar(cs, orientation='horizontal', label='CAPE [J/kg]', pad=0.04, fraction=0.04)
 
         if debug:
             plt.show(block=True)

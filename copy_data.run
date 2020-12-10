@@ -12,7 +12,7 @@ export N_CONCUR_PROCESSES=8
 export NCFTP_BOOKMARK="altervista"
 DATA_DOWNLOAD=true
 DATA_PLOTTING=true
-DATA_UPLOAD=false
+DATA_UPLOAD=true
 
 ##### LOAD functions to download model data
 . ./functions_download_dwd.sh

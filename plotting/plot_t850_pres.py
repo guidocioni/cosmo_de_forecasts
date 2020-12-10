@@ -32,7 +32,7 @@ def main():
     dset.t.metpy.convert_units('degC')
     dset.prmsl.metpy.convert_units('hPa')
 
-    levels_temp = np.arange(-30., 30., 2.)
+    levels_temp = np.arange(-25., 25., 1.)
     cmap = get_colormap('temp')
 
     fig = plt.figure(figsize=(figsize_x, figsize_y))

@@ -32,7 +32,7 @@ def main():
     This is not included in utils.py as it can change from case to case."""
     dset = read_dataset(variables=['RAIN_GSP', 'SNOW_GSP', 'SNOWLMT'],
                         projection=projection)
-
+    dset = dset.dropna(dim='time')
     dset = compute_rain_snow_change(dset)
     dset['SNOWLMT'].metpy.convert_units('m')
 
