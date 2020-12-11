@@ -3,7 +3,9 @@
 # Cd into our working directory in case we're not into it already
 cd "$(dirname "$0")";
 
+echo "-----------------------------------------------------------------------------------------"
 echo "COSMO-D2: Starting processing of icon model data - `date`"
+echo "-----------------------------------------------------------------------------------------"
 
 # Folder to be used to download and process data
 export MODEL_DATA_FOLDER="/tmp/cosmo-d2/"
@@ -21,48 +23,27 @@ export SHELL=$(type -p bash)
 ulimit -Sn 4096
 ########################################### 
 
+# Retrieve run ##########################
+if [ -f $MODEL_DATA_FOLDER/last_processed_run.txt ]; then
+	latest_run=`python get_last_run.py`
+	latest_processed_run=`while read line; do echo $line; done < $MODEL_DATA_FOLDER/last_processed_run.txt`
+	if [ $latest_run -gt $latest_processed_run ]; then
+		echo "New run ${latest_run} found! Last processed run was ${latest_processed_run}."
+	else
+		echo "Run ${latest_processed_run} already processed, exiting"
+		exit 1
+	fi
+fi
+
+export year=${latest_run:0:4} 
+export month=${latest_run:4:2} 
+export day=${latest_run:6:2} 
+export run=${latest_run:8:2}
+
 ###########################################
 
 mkdir -p ${MODEL_DATA_FOLDER}it
 mkdir -p ${MODEL_DATA_FOLDER}nord
-
-# Retrieve run ##########################
-export year=`date +"%Y"`
-export month=`date +"%m"`
-export day=`date +"%d"`
-export hour=`date +"%H"`
-export hour_no_zero=`date -u +"%-H"`
-
-if [ "$hour_no_zero" -ge 1 ] && [ "$hour_no_zero" -lt 4 ] 
-then 
- run="00"
-elif [ "$hour_no_zero" -ge 4 ] && [ "$hour_no_zero" -lt 7 ] 
-then
- run="03"
-elif [ "$hour_no_zero" -ge 7 ] && [ "$hour_no_zero" -lt 10 ] 
-then
- run="06"
-elif [ "$hour_no_zero" -ge 10 ] && [ "$hour_no_zero" -lt 13 ] 
-then
- run="09"
-elif [ "$hour_no_zero" -ge 13 ] && [ "$hour_no_zero" -lt 16 ] 
-then
- run="12"
-elif [ "$hour_no_zero" -ge 16 ] && [ "$hour_no_zero" -lt 19 ] 
-then
- run="15"
-elif [ "$hour_no_zero" -ge 19 ] && [ "$hour_no_zero" -lt 22 ] 
-then
- run="18"
-elif [ "$hour_no_zero" -ge 22 ] && [ "$hour_no_zero" -le 23 ] 
-then
- run="21"
-fi
-
-export run
-
-###########################################
-
 # Move to the data folder to do processing
 cd ${MODEL_DATA_FOLDER} || { echo 'Cannot change to DATA folder' ; exit 1; }
 
@@ -113,10 +94,24 @@ if [ "$DATA_PLOTTING" = true ]; then
 
 	projections=("de" "it" "nord")
 
-	parallel -j ${N_CONCUR_PROCESSES} python ::: "${scripts[@]}" ::: "${projections[@]}"
+	parallel -j 5 python ::: "${scripts[@]}" ::: "${projections[@]}"
+	rm ${MODEL_DATA_FOLDER}*.py
 fi
 
 ############################################################
+
+# If we at least produced some netcdf and images we assume the run is succesfull and 
+# store the run processed in a text file. Unfortunately there is no easy way to check
+# if the processing is really succesfull as we have many errors in the process that
+# don't undermine the whole processing! 
+
+N_NETCDF_FILES=`find . -type f -name '*.nc' -printf x | wc -c`
+N_IMAGES=`find . -type f -name '*.png' -printf x | wc -c`
+
+if [ $N_NETCDF_FILES -ge 2 ] && [ $N_IMAGES -ge 10 ]; then
+	echo $year$month$day$run > last_processed_run.txt
+fi
+
 
 # SECTION 3 - IMAGES UPLOAD ############################################################
 # Use ncftpbookmarks to add a new FTP server with credentials
@@ -140,33 +135,28 @@ if [ "$DATA_UPLOAD" = true ]; then
 
 	# Create a lisf of all the images to upload 
 	upload_elements=()
+	upload_folder=()
 	for i in "${!projections_output[@]}"; do
 		for j in "${images_output[@]}"; do
-			upload_elements+=("${projections_output_folder[$i]}/${j} ./${projections_output[$i]}${j}_*")
+			upload_folder+=("${projections_output_folder[$i]}/${j}")
+			upload_elements+=("${MODEL_DATA_FOLDER}${projections_output[$i]}${j}_*")
 		done
 	done
 
-	# Finally upload the images 
-	for k in "${upload_elements[@]}"; do
-		ncftpput -R -v ${NCFTP_BOOKMARK} ${k}
-	done
+	parallel -j 2 --link ncftpput -R -v -DD -m ${NCFTP_BOOKMARK} ::: ${upload_folder[@]} ::: ${upload_elements[@]}
 
-	# To be parallelized in the future if the FTP server accepts multiple connections
-	# this doesn't work 
-	# parallel -j 2 ncftpput -R -v ${NCFTP_BOOKMARK} ::: "${upload_elements[@]}"
-
+	rm ${MODEL_DATA_FOLDER}*.png
+	rm ${MODEL_DATA_FOLDER}nord/*.png
+	rm ${MODEL_DATA_FOLDER}it/*.png
 fi 
 
 # SECTION 4 - CLEANING ############################################################
 
 #Remove images locally
-rm ${MODEL_DATA_FOLDER}*.png
-rm ${MODEL_DATA_FOLDER}nord/*.png
-rm ${MODEL_DATA_FOLDER}it/*.png
-rm ${MODEL_DATA_FOLDER}*.py
+
 
 echo "-----------------------------------------------------------------------------------------"
-echo "cosmo-d2: Finished cleanin up - `date`"
+echo "cosmo-d2: Finished processing run ${year}${month}${day}${run} - `date`"
 echo "-----------------------------------------------------------------------------------------"
 
 ############################################################
