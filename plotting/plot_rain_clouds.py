@@ -35,7 +35,7 @@ def main():
                                     'PMSL', 'CLCL', 'CLCH'],
                                     projection=projection)
     # Convert to hourly data
-    dset = dset.dropna(dim='time')
+    dset = dset.resample(time="1H").nearest(tolerance="1H")
     dset = compute_rate(dset)
     dset['prmsl'].metpy.convert_units('hPa')
 

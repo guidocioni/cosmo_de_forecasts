@@ -45,7 +45,7 @@ def plot(cities, **args):
         print_message('Producing meteogram for %s' % city)
         lon, lat = get_city_coordinates(city)
         dset_city = args['dset'].sel(lon=lon, lat=lat, method='nearest').load()
-        dset_hourly = dset_city.dropna(dim='time')
+        dset_hourly = dset_city.resample(time="1H").nearest(tolerance="1H")
         time_hourly, run, cum_hour = get_time_run_cum(dset_hourly)
         time_prec, _, _ = get_time_run_cum(dset_city)
         t = dset_hourly['t']

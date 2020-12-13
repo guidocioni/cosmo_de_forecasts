@@ -120,7 +120,7 @@ if [ "$DATA_UPLOAD" = true ]; then
 	echo "cosmo-d2: Starting FTP uploading - `date`"
 	echo "-----------------------------------------------------------------------------------------"
 	# First upload meteograms
-	ncftpput -R -v ${NCFTP_BOOKMARK} cosmo_de_forecasts/meteograms meteogram_*
+	ncftpput -R -v -DD -m ${NCFTP_BOOKMARK} cosmo_de_forecasts/meteograms meteogram_*
 	#
 	# Then upload the other pictures
 	#
@@ -135,15 +135,19 @@ if [ "$DATA_UPLOAD" = true ]; then
 
 	# Create a lisf of all the images to upload 
 	upload_elements=()
-	upload_folder=()
 	for i in "${!projections_output[@]}"; do
 		for j in "${images_output[@]}"; do
-			upload_folder+=("${projections_output_folder[$i]}/${j}")
-			upload_elements+=("${MODEL_DATA_FOLDER}${projections_output[$i]}${j}_*")
+				upload_elements+=("${projections_output_folder[$i]}/${j} ./${projections_output[$i]}${j}_*")
 		done
 	done
 
-	parallel -j 2 --link ncftpput -R -v -DD -m ${NCFTP_BOOKMARK} ::: ${upload_folder[@]} ::: ${upload_elements[@]}
+
+	for k in "${upload_elements[@]}"; do
+		ncftpput -R -v -DD -m ${NCFTP_BOOKMARK} ${k}
+	done
+
+	# Can't figure it out why the parallel version does not work
+	#parallel -j 1 --link ncftpput -R -v ${NCFTP_BOOKMARK} ::: ${upload_folder[@]} ::: ${upload_elements[@]}
 
 	rm ${MODEL_DATA_FOLDER}*.png
 	rm ${MODEL_DATA_FOLDER}nord/*.png

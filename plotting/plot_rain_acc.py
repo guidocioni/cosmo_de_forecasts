@@ -31,7 +31,7 @@ def main():
     This is not included in utils.py as it can change from case to case."""
     dset = read_dataset(variables=['TOT_PREC', 'PMSL'],
                         projection=projection)
-    dset = dset.dropna(dim='time')
+    dset = dset.resample(time="1H").nearest(tolerance="1H")
     dset['prmsl'].metpy.convert_units('hPa')
 
     levels_precip = (5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 35, 40,
@@ -47,8 +47,10 @@ def main():
     m.fillcontinents(color='lightgray', lake_color='whitesmoke', zorder=0)
 
     dset = dset.drop(['lon', 'lat']).load()
+    print(dset)
 
-    levels_mslp = np.arange(dset['prmsl'].min().astype("int"), dset['prmsl'].max().astype("int"), 4.)
+    levels_mslp = np.arange(dset['prmsl'].min().astype("int"),
+                    dset['prmsl'].max().astype("int"), 4.)
 
     # All the arguments that need to be passed to the plotting function
     args=dict(x=x, y=y, ax=ax,
