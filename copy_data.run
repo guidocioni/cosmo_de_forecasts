@@ -31,7 +31,7 @@ if [ -f $MODEL_DATA_FOLDER/last_processed_run.txt ]; then
 		echo "New run ${latest_run} found! Last processed run was ${latest_processed_run}."
 	else
 		echo "Run ${latest_processed_run} already processed, exiting"
-		exit 1
+		exit 0
 	fi
 fi
 

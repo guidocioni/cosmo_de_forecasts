@@ -47,7 +47,6 @@ def main():
     m.fillcontinents(color='lightgray', lake_color='whitesmoke', zorder=0)
 
     dset = dset.drop(['lon', 'lat']).load()
-    print(dset)
 
     levels_mslp = np.arange(dset['prmsl'].min().astype("int"),
                     dset['prmsl'].max().astype("int"), 4.)
