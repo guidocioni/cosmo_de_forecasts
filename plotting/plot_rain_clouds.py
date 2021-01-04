@@ -36,6 +36,7 @@ def main():
                                     projection=projection)
     # Convert to hourly data
     dset = dset.resample(time="1H").nearest(tolerance="1H")
+    dset = dset.chunk({'time': 2})
     dset = compute_rate(dset)
     dset['prmsl'].metpy.convert_units('hPa')
 

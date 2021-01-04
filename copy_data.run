@@ -24,8 +24,8 @@ ulimit -Sn 4096
 ########################################### 
 
 # Retrieve run ##########################
+latest_run=`python get_last_run.py`
 if [ -f $MODEL_DATA_FOLDER/last_processed_run.txt ]; then
-	latest_run=`python get_last_run.py`
 	latest_processed_run=`while read line; do echo $line; done < $MODEL_DATA_FOLDER/last_processed_run.txt`
 	if [ $latest_run -gt $latest_processed_run ]; then
 		echo "New run ${latest_run} found! Last processed run was ${latest_processed_run}."
