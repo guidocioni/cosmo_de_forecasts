@@ -30,7 +30,6 @@ def main():
     dset = read_dataset(variables=['T_2M', 'TD_2M', 'T', 'VMAX_10M',
                                    'PMSL', 'HSURF', 'WW', 'RAIN_GSP', 'RAIN_CON',
                                    'SNOW_GSP', 'SNOW_CON', 'RELHUM', 'U', 'V', 'CLC'])
-    print(dset)
     # Subset dataset on cities and create iterator
     it = []
     for city in cities:

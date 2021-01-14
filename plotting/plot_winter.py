@@ -47,7 +47,8 @@ def main():
     ax = plt.gca()
 
     m, x, y = get_projection(dset, projection, labels=True)
-    m.fillcontinents(color='lightgray',lake_color='whitesmoke', zorder=0)
+    #m.fillcontinents(color='lightgray',lake_color='whitesmoke', zorder=0)
+    m.arcgisimage(service='World_Shaded_Relief', xpixels = 1500)
 
     dset = dset.drop(['lon', 'lat', 'RAIN_GSP', 'SNOW_GSP']).load()
 
@@ -80,10 +81,10 @@ def plot_files(dss, **args):
 
         cs_rain = args['ax'].contourf(args['x'], args['y'], data['rain_increment'],
                          extend='max', cmap=args['cmap_rain'], norm=args['norm_rain'],
-                         levels=args['levels_rain'], alpha=0.8)
+                         levels=args['levels_rain'], alpha=0.5, antialiased = True)
         cs_snow = args['ax'].contourf(args['x'], args['y'], data['snow_increment'],
                          extend='max', cmap=args['cmap_snow'], norm=args['norm_snow'],
-                         levels=args['levels_snow'], alpha=0.8)
+                         levels=args['levels_snow'], antialiased = True)
 
         c = args['ax'].contour(args['x'], args['y'], data['SNOWLMT'], levels=args['levels_snowlmt'],
                              colors='red', linewidths=0.5)

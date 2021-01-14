@@ -94,7 +94,7 @@ if [ "$DATA_PLOTTING" = true ]; then
 
 	projections=("de" "it" "nord")
 
-	parallel -j 5 python ::: "${scripts[@]}" ::: "${projections[@]}"
+	parallel -j 5 --delay 1 python ::: "${scripts[@]}" ::: "${projections[@]}"
 	rm ${MODEL_DATA_FOLDER}*.py
 fi
 
