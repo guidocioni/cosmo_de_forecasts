@@ -47,7 +47,7 @@ else:
 options_savefig={
     'dpi':100,
     'bbox_inches':'tight',
-    'transparent': True
+    'transparent': False
 }
 
 # Dictionary to map the output folder based on the projection employed
@@ -184,9 +184,8 @@ def read_dataset(variables = ['T_2M', 'TD_2M'], level=None, projection=None,
     dset = xr.open_mfdataset(needed_files,
                              preprocess=preprocess,
                              engine=engine,
-                             chunks={'time': 2, 'lon': 100, 'lat': 100}
                              )
-    dset = dset.metpy.parse_cf()
+    dset = dset.load().metpy.parse_cf()
     if level:
         dset = dset.sel(plev=level, method='nearest')
     if projection:
@@ -283,7 +282,7 @@ def get_projection(dset, projection="de", countries=True, regions=True, labels=F
     if projection=="de":
         if regions:
             m.readshapefile(home_folder + '/plotting/shapefiles/DEU_adm/DEU_adm1',
-                            'DEU_adm1',linewidth=0.2,color='black',zorder=5)
+                            'DEU_adm1',linewidth=0.2,color='black',zorder=8)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)
@@ -292,7 +291,7 @@ def get_projection(dset, projection="de", countries=True, regions=True, labels=F
     elif projection=="it":
         if regions:
             m.readshapefile(home_folder + '/plotting/shapefiles/ITA_adm/ITA_adm1',
-                            'ITA_adm1',linewidth=0.2,color='black',zorder=5)
+                            'ITA_adm1',linewidth=0.2,color='black',zorder=8)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)
@@ -301,7 +300,7 @@ def get_projection(dset, projection="de", countries=True, regions=True, labels=F
     elif projection=="nord":
         if regions:
             m.readshapefile(home_folder + '/plotting/shapefiles/DEU_adm/DEU_adm1',
-                            'DEU_adm1',linewidth=0.2,color='black',zorder=5)
+                            'DEU_adm1',linewidth=0.2,color='black',zorder=8)
         if labels:
             m.drawparallels(np.arange(-80.,81.,2), linewidth=0.2, color='white',
                 labels=[True, False, False, True], fontsize=7)

@@ -39,6 +39,8 @@ def main():
 
     dset = compute_snow_change(dset)
 
+    print(dset)
+
     levels_hsnow = (-50, -40, -30, -20, -10, -5, -2.5, -2, -1, -0.5,
                     0, 0.5, 1, 2, 2.5, 5, 10, 20, 30, 40, 50)
     levels_snowlmt = np.arange(0., 3000., 500.)
